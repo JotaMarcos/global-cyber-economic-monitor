@@ -6,6 +6,7 @@ import {
 } from "node:http";
 import type {
   AgencyDirectory,
+  TerritoryDirectory,
   ThreatSnapshot,
 } from "../../../contract/threat-snapshot.ts";
 import type { ReadonlyObservable } from "../../../shared/observable/observable.ts";
@@ -16,6 +17,7 @@ import { resolveStaticFile } from "./static-files.ts";
 export interface GatewayServerOptions {
   readonly snapshot: ReadonlyObservable<ThreatSnapshot>;
   readonly agencyDirectory: ReadonlyObservable<AgencyDirectory>;
+  readonly territoryDirectory: ReadonlyObservable<TerritoryDirectory>;
   readonly rateLimiter: ClientRateLimiter;
   readonly clock: Clock;
   readonly logger: Logger;
@@ -46,7 +48,7 @@ type Handler = (
  * servir os arquivos estáticos do dashboard.
  */
 export function createGatewayServer(options: GatewayServerOptions): Server {
-  const { snapshot, agencyDirectory, clock, logger } = options;
+  const { snapshot, agencyDirectory, territoryDirectory, clock, logger } = options;
   const startedAt = clock.now().getTime();
   const streamClients = new Set<ServerResponse>();
 
@@ -110,6 +112,8 @@ export function createGatewayServer(options: GatewayServerOptions): Server {
       sendJson(response, 200, snapshot.getValue()),
     "/api/v1/agencies": (_request, response) =>
       sendJson(response, 200, agencyDirectory.getValue()),
+    "/api/v1/territories": (_request, response) =>
+      sendJson(response, 200, territoryDirectory.getValue()),
     "/api/v1/stream": stream,
   };
 

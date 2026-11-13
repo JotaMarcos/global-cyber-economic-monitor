@@ -1,4 +1,8 @@
-import type { Agency, ThreatSnapshot } from "../../contract/threat-snapshot.ts";
+import type {
+  Agency,
+  Subdivision,
+  ThreatSnapshot,
+} from "../../contract/threat-snapshot.ts";
 
 export type ConnectionStatus = "CONNECTING" | "LIVE" | "RECONNECTING" | "OFFLINE";
 
@@ -15,4 +19,6 @@ export interface ThreatFeedHandlers {
 export interface ThreatFeed {
   subscribe(handlers: ThreatFeedHandlers): Unsubscribe;
   loadAgencies(): Promise<Agency[]>;
+  /** Divisão territorial oficial (unidades da federação e municípios do Brasil). */
+  loadTerritories(): Promise<Subdivision[]>;
 }

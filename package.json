@@ -3,10 +3,10 @@
   "version": "2.0.0",
   "scripts": {
     "dev": "concurrently -k -n gateway,web -c blue,green \"npm:dev:gateway\" \"npm:dev:web\"",
-    "dev:gateway": "node --watch src/gateway/main/main.ts",
+    "dev:gateway": "node --experimental-strip-types --disable-warning=ExperimentalWarning --watch src/gateway/main/main.ts",
     "dev:web": "vite",
     "build": "tsc --noEmit && vite build",
-    "start": "GCEM_STATIC_DIR=dist node src/gateway/main/main.ts",
+    "start": "GCEM_STATIC_DIR=dist node --experimental-strip-types --disable-warning=ExperimentalWarning src/gateway/main/main.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "format": "prettier --write .",
@@ -14,7 +14,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "verify:sources": "node scripts/verify-sources.ts",
+    "verify:sources": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/verify-sources.ts",
     "check": "npm run typecheck && npm run lint && npm run format:check && npm run test:coverage && vite build"
   },
   "keywords": [],
@@ -26,6 +26,7 @@
     "lucide-react": "^1.72.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
+    "recharts": "^3.10.1",
     "zod": "^4.6.7"
   },
   "devDependencies": {
@@ -54,6 +55,6 @@
   },
   "private": true,
   "engines": {
-    "node": ">=22.18"
+    "node": "^22.22.2 || >=24.15"
   }
 }

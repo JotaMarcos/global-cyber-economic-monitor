@@ -25,6 +25,9 @@ O gateway existe porque várias fontes não permitem chamadas diretas do navegad
 | SANS ISC / DShield     | SANS Internet Storm Center (EUA)                       | Nível Infocon e principais origens de ataque          | 5 min  |
 | abuse.ch Feodo Tracker | abuse.ch (Suíça)                                       | Servidores de comando e controle de botnets           | 10 min |
 | FIRST Teams            | Forum of Incident Response and Security Teams          | Diretório mundial de equipes de resposta a incidentes | 12 h   |
+| IBGE Localidades       | Instituto Brasileiro de Geografia e Estatística        | Divisão territorial oficial: UFs e municípios         | 24 h   |
+
+O IBGE é fonte de referência, e não de incidentes: alimenta os filtros de estado e município do Brasil.
 
 A cobertura de todos os continentes decorre de duas dimensões: o país das organizações atacadas e o diretório do FIRST, que reúne equipes de resposta (CSIRT, SOC, PSIRT, ISAC) da América do Sul, América Central e Caribe, América do Norte, Europa, Ásia e Oriente Médio, Oceania e África.
 
@@ -34,13 +37,13 @@ Estas ressalvas também são exibidas no próprio painel.
 
 1. **Organizações atacadas.** A lista reproduz alegações publicadas por grupos de ransomware. A presença de uma organização não confirma a ocorrência nem a extensão do ataque. Não existe fonte pública que relacione todos os ataques em curso no mundo.
 2. **Prejuízo estimado.** Nenhuma fonte informa a perda financeira por incidente. O valor exibido é o número de incidentes multiplicado por um custo médio de referência (padrão: US$ 4,44 milhões, IBM Cost of a Data Breach Report 2025). Trata-se de ordem de grandeza. O parâmetro é configurável.
-3. **Granularidade geográfica.** As fontes informam a localização até o nível de país. Não há dados de estado, município ou comunidade, e por isso esses filtros não são oferecidos.
+3. **Granularidade geográfica.** As fontes de incidentes informam a localização até o nível de país. Nenhuma instituição oficial publica ataques cibernéticos por estado ou município. Os filtros de estado e município do Brasil seguem a divisão territorial oficial do IBGE, mas não restringem os dados: com um deles selecionado, o painel avisa que os indicadores se referem ao país e não atribui ocorrências a localidades por suposição.
 4. **Tempo real.** A atualização é contínua no painel, mas limitada pelo ciclo de publicação de cada fonte, indicado na tabela acima.
 5. **Privacidade e segurança.** O gateway descarta os endereços de sites de vazamento e as capturas de tela fornecidos pela fonte de ransomware.
 
 ## 4. Execução
 
-Requisito: Node.js 22.18 ou superior. O gateway executa TypeScript diretamente, sem etapa de compilação.
+Requisito: Node.js 22.22.2 ou superior na linha 22, ou 24.15 ou superior (exigência do jsdom usado nos testes). O gateway executa TypeScript diretamente, sem etapa de compilação.
 
 ```bash
 npm install
@@ -66,12 +69,13 @@ npm start              # http://127.0.0.1:8787
 
 ## 5. API do gateway
 
-| Rota                   | Descrição                                                |
-| ---------------------- | -------------------------------------------------------- |
-| `GET /api/v1/snapshot` | Retrato consolidado atual                                |
-| `GET /api/v1/stream`   | Fluxo SSE: retrato atual na conexão e a cada nova coleta |
-| `GET /api/v1/agencies` | Diretório de equipes de resposta                         |
-| `GET /api/v1/health`   | Situação do serviço e das fontes                         |
+| Rota                      | Descrição                                                |
+| ------------------------- | -------------------------------------------------------- |
+| `GET /api/v1/snapshot`    | Retrato consolidado atual                                |
+| `GET /api/v1/stream`      | Fluxo SSE: retrato atual na conexão e a cada nova coleta |
+| `GET /api/v1/agencies`    | Diretório de equipes de resposta                         |
+| `GET /api/v1/territories` | Divisão territorial oficial do Brasil (IBGE)             |
+| `GET /api/v1/health`      | Situação do serviço e das fontes                         |
 
 O formato das respostas é definido em `src/contract/threat-snapshot.ts` e validado nos dois lados.
 
@@ -84,7 +88,7 @@ O formato das respostas é definido em `src/contract/threat-snapshot.ts` e valid
 | `npm run format:check`   | Formatação com Prettier                                                     |
 | `npm test`               | Testes unitários, de contrato, de integração, de interface e de arquitetura |
 | `npm run test:coverage`  | Testes com cobertura (limiar mínimo de 90% de linhas)                       |
-| `npm run verify:sources` | Consulta as seis fontes reais e relata registros válidos e rejeitados       |
+| `npm run verify:sources` | Consulta as sete fontes reais e relata registros válidos e rejeitados       |
 | `npm run check`          | Executa todas as verificações estáticas, os testes e o build                |
 
 A arquitetura, as decisões de projeto e a estratégia de testes estão em [docs/ARQUITETURA.md](docs/ARQUITETURA.md).

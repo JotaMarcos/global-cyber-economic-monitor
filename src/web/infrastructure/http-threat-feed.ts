@@ -1,7 +1,9 @@
 import {
   agencyDirectorySchema,
+  territoryDirectorySchema,
   threatSnapshotSchema,
   type Agency,
+  type Subdivision,
 } from "../../contract/threat-snapshot.ts";
 import type {
   ThreatFeed,
@@ -58,13 +60,21 @@ export class HttpThreatFeed implements ThreatFeed {
   }
 
   async loadAgencies(): Promise<Agency[]> {
-    const response = await this.options.httpFetch(`${this.options.baseUrl}/agencies`, {
+    return agencyDirectorySchema.parse(await this.getJson("agencies")).agencies;
+  }
+
+  async loadTerritories(): Promise<Subdivision[]> {
+    return territoryDirectorySchema.parse(await this.getJson("territories")).subdivisions;
+  }
+
+  private async getJson(resource: string): Promise<unknown> {
+    const response = await this.options.httpFetch(`${this.options.baseUrl}/${resource}`, {
       headers: { accept: "application/json" },
     });
     if (!response.ok) {
       throw new Error(`Gateway respondeu HTTP ${response.status}.`);
     }
-    return agencyDirectorySchema.parse(await response.json()).agencies;
+    return (await response.json()) as unknown;
   }
 }
 

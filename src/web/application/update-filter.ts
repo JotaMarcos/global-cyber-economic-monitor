@@ -1,5 +1,11 @@
 import type { ObservableState } from "../../shared/observable/observable.ts";
-import { EMPTY_FILTER, withContinent, type DashboardFilter } from "../domain/filter.ts";
+import {
+  EMPTY_FILTER,
+  withContinent,
+  withCountry,
+  withState,
+  type DashboardFilter,
+} from "../domain/filter.ts";
 
 /** Comandos de filtragem. A regra de reset em cascata reside no domínio. */
 export class UpdateFilterUseCase {
@@ -14,7 +20,15 @@ export class UpdateFilterUseCase {
   }
 
   selectCountry(country: string): void {
-    this.filter.update((current) => ({ ...current, country }));
+    this.filter.update((current) => withCountry(current, country));
+  }
+
+  selectState(state: string): void {
+    this.filter.update((current) => withState(current, state));
+  }
+
+  selectMunicipality(municipality: string): void {
+    this.filter.update((current) => ({ ...current, municipality }));
   }
 
   selectSector(sector: string): void {

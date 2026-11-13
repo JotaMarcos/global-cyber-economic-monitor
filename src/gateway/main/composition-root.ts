@@ -19,6 +19,7 @@ import { TimedCircuitBreaker } from "../infrastructure/resilience/timed-circuit-
 import { CisaKevSource } from "../infrastructure/sources/cisa-kev-source.ts";
 import { FeodoTrackerSource } from "../infrastructure/sources/feodo-tracker-source.ts";
 import { FirstTeamsSource } from "../infrastructure/sources/first-teams-source.ts";
+import { IbgeLocalitiesSource } from "../infrastructure/sources/ibge-localities-source.ts";
 import { NistNvdSource } from "../infrastructure/sources/nist-nvd-source.ts";
 import { RansomwareLiveSource } from "../infrastructure/sources/ransomware-live-source.ts";
 import { SansIscSource } from "../infrastructure/sources/sans-isc-source.ts";
@@ -100,6 +101,7 @@ export function createGatewayContainer(config: GatewayConfig): Container {
           }),
           c2Servers: monitor(c, new FeodoTrackerSource(http), []),
           agencies: monitor(c, new FirstTeamsSource(http), []),
+          territories: monitor(c, new IbgeLocalitiesSource(http), []),
         },
       });
     })
@@ -109,6 +111,7 @@ export function createGatewayContainer(config: GatewayConfig): Container {
       return createGatewayServer({
         snapshot: service.snapshot,
         agencyDirectory: service.agencyDirectory,
+        territoryDirectory: service.territoryDirectory,
         rateLimiter: c.resolve(TOKENS.rateLimiter),
         clock: c.resolve(TOKENS.clock),
         logger: c.resolve(TOKENS.logger),

@@ -13,12 +13,15 @@ const VISIBLE_ROWS = 60;
 interface IncidentTableProps {
   readonly incidents: readonly Incident[];
   readonly lossReference: LossReference;
+  /** Com busca ativa, a lista vem ordenada por relevância e não por data. */
+  readonly orderedByRelevance?: boolean;
   readonly className?: string;
 }
 
 export function IncidentTable({
   incidents,
   lossReference,
+  orderedByRelevance = false,
   className,
 }: IncidentTableProps) {
   const visible = incidents.slice(0, VISIBLE_ROWS);
@@ -27,7 +30,14 @@ export function IncidentTable({
     <Panel
       title="Organizações atacadas"
       source="Ransomware.live (alegações de grupos criminosos, não confirmadas)"
-      aside={`${formatInteger(incidents.length)} registros`}
+      aside={
+        <span className="text-right">
+          <span className="block">{formatInteger(incidents.length)} registros</span>
+          {orderedByRelevance && (
+            <span className="block text-accent">Ordenados por relevância</span>
+          )}
+        </span>
+      }
       className={className}
     >
       {incidents.length === 0 ? (
@@ -90,7 +100,8 @@ export function IncidentTable({
           </table>
           {incidents.length > visible.length && (
             <p className="border-t border-line px-4 py-2 text-[11px] text-faint">
-              Exibindo os {VISIBLE_ROWS} registros mais recentes de{" "}
+              Exibindo os {VISIBLE_ROWS} registros{" "}
+              {orderedByRelevance ? "mais relevantes" : "mais recentes"} de{" "}
               {formatInteger(incidents.length)}.
             </p>
           )}

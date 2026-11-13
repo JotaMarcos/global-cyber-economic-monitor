@@ -6,10 +6,12 @@ import {
   criticalCveSchema,
   exploitedVulnerabilitySchema,
   incidentSchema,
+  subdivisionSchema,
 } from "../../src/contract/threat-snapshot.ts";
 import { CisaKevSource } from "../../src/gateway/infrastructure/sources/cisa-kev-source.ts";
 import { FeodoTrackerSource } from "../../src/gateway/infrastructure/sources/feodo-tracker-source.ts";
 import { FirstTeamsSource } from "../../src/gateway/infrastructure/sources/first-teams-source.ts";
+import { IbgeLocalitiesSource } from "../../src/gateway/infrastructure/sources/ibge-localities-source.ts";
 import { NistNvdSource } from "../../src/gateway/infrastructure/sources/nist-nvd-source.ts";
 import {
   RansomwareLiveSource,
@@ -304,5 +306,52 @@ describe("FirstTeamsSource", () => {
     ).read(signal);
 
     expect(reading).toMatchObject({ recordCount: 0, rejectedCount: 1 });
+  });
+});
+
+describe("IbgeLocalitiesSource", () => {
+  const municipalities = fixture("ibge.municipios.json") as unknown[];
+
+  it("agrupa a amostra real por unidade da federação, em ordem alfabética", async () => {
+    const reading = await new IbgeLocalitiesSource(stub({ ibge: municipalities })).read(
+      signal,
+    );
+
+    expect(reading).toMatchObject({ recordCount: 5, rejectedCount: 0 });
+    expect(reading.data.every((item) => subdivisionSchema.safeParse(item).success)).toBe(
+      true,
+    );
+    expect(reading.data.map((subdivision) => subdivision.code)).toEqual([
+      "AM",
+      "DF",
+      "SP",
+    ]);
+    expect(reading.data[0]).toEqual({
+      code: "AM",
+      name: "Amazonas",
+      municipalities: [
+        { id: "1301902", name: "Itacoatiara" },
+        { id: "1302603", name: "Manaus" },
+      ],
+    });
+  });
+
+  it("descarta município com código fora do padrão oficial e mantém os demais", async () => {
+    const reading = await new IbgeLocalitiesSource(
+      stub({
+        ibge: [
+          ...municipalities,
+          { "municipio-id": 12, "municipio-nome": "X", "UF-sigla": "AM", "UF-nome": "A" },
+        ],
+      }),
+    ).read(signal);
+
+    expect(reading).toMatchObject({ recordCount: 5, rejectedCount: 1 });
+  });
+
+  it("trata envelope fora do formato como falha da fonte", async () => {
+    await expect(
+      new IbgeLocalitiesSource(stub({ ibge: { erro: true } })).read(signal),
+    ).rejects.toThrow(/fora do formato esperado/);
   });
 });

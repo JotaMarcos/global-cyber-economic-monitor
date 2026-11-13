@@ -207,12 +207,17 @@ describe("gateway composto com as fontes reais (rede substituída por amostras)"
 
     expect(threatSnapshotSchema.safeParse(snapshot).success).toBe(true);
     expect(snapshot.sources.map((source) => source.health)).toEqual(
-      Array(6).fill("ONLINE"),
+      Array(7).fill("ONLINE"),
     );
     expect(snapshot.incidents.length).toBeGreaterThan(0);
     expect(snapshot.infoconLevel).toBe("GREEN");
     expect(snapshot.lossReference).toEqual(DEFAULT_LOSS_REFERENCE);
     expect(service.agencyDirectory.getValue().agencies.length).toBeGreaterThan(0);
+    expect(
+      service.territoryDirectory
+        .getValue()
+        .subdivisions.map((subdivision) => subdivision.code),
+    ).toEqual(["AM", "DF", "SP"]);
     service.stop();
   });
 
@@ -227,7 +232,7 @@ describe("gateway composto com as fontes reais (rede substituída por amostras)"
       health: "OFFLINE",
       lastError: "HTTP 503 em api.ransomware.live",
     });
-    expect(sources.filter((source) => source.health === "ONLINE")).toHaveLength(5);
+    expect(sources.filter((source) => source.health === "ONLINE")).toHaveLength(6);
     expect(incidents).toEqual([]);
     expect(knownExploited.total).toBeGreaterThan(0);
     service.stop();
@@ -238,7 +243,7 @@ describe("gateway composto com as fontes reais (rede substituída por amostras)"
 
     service.start();
     service.start();
-    expect(scheduler.activeCount).toBe(6);
+    expect(scheduler.activeCount).toBe(7);
 
     service.stop();
     expect(scheduler.activeCount).toBe(0);

@@ -5,6 +5,25 @@ const GATEWAY_URL = process.env.GCEM_GATEWAY_URL ?? "http://127.0.0.1:8787";
 
 export default defineConfig({
   plugins: [react()],
+  build: {
+    rolldownOptions: {
+      output: {
+        // Bibliotecas em pacotes próprios: mudam pouco e ficam em cache no navegador.
+        codeSplitting: {
+          groups: [
+            {
+              name: "charts",
+              test: /node_modules[\\/](recharts|d3-[^\\/]+|victory-vendor|@reduxjs|redux|react-redux|immer|reselect|es-toolkit|decimal\.js-light|eventemitter3|tiny-invariant)[\\/]/,
+            },
+            {
+              name: "react",
+              test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/,
+            },
+          ],
+        },
+      },
+    },
+  },
   server: {
     // Em desenvolvimento, o dashboard alcança o gateway pela mesma origem.
     proxy: { "/api": { target: GATEWAY_URL, changeOrigin: true } },

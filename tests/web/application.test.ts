@@ -127,8 +127,26 @@ describe("UpdateFilterUseCase", () => {
     expect(filter.getValue()).toEqual({
       continent: "EUROPE",
       country: "DE",
+      state: "ALL",
+      municipality: "ALL",
       sector: "Healthcare",
       searchTerm: "hospital",
+    });
+
+    useCase.selectCountry("BR");
+    useCase.selectState("AM");
+    useCase.selectMunicipality("1302603");
+    expect(filter.getValue()).toMatchObject({ state: "AM", municipality: "1302603" });
+
+    useCase.selectState("SP");
+    expect(filter.getValue()).toMatchObject({ state: "SP", municipality: "ALL" });
+
+    useCase.selectMunicipality("3550308");
+    useCase.selectCountry("AR");
+    expect(filter.getValue()).toMatchObject({
+      country: "AR",
+      state: "ALL",
+      municipality: "ALL",
     });
 
     useCase.selectContinent("ASIA");

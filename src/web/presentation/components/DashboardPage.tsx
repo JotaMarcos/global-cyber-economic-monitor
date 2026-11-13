@@ -1,23 +1,38 @@
+import { MapPin } from "lucide-react";
 import { useEffect, useMemo } from "react";
-import { ALL } from "../../domain/filter.ts";
-import { buildOverview, type RankedItem } from "../../domain/overview.ts";
+import type { SourceId, Subdivision } from "../../../contract/threat-snapshot.ts";
+import { ALL, type DashboardFilter } from "../../domain/filter.ts";
+import {
+  buildOverview,
+  indexOverviewInput,
+  type RankedItem,
+} from "../../domain/overview.ts";
+import { buildThreatFeed } from "../../domain/threat-feed-items.ts";
 import { useDashboard } from "../context/dashboard-context.tsx";
 import { countryName, formatUsd, formatUsdCompact } from "../format.ts";
 import { useObservable } from "../hooks/use-observable.ts";
-import { CONTINENT_LABELS, emptyMessage, sectorLabel } from "../labels.ts";
+import { CONTINENT_LABELS, sectorLabel } from "../labels.ts";
 import { AgencyDirectory } from "./AgencyDirectory.tsx";
-import { BarList, ColumnChart, type BarListItem } from "./charts.tsx";
+import { BarList, type BarListItem } from "./charts.tsx";
 import { FilterBar } from "./FilterBar.tsx";
 import { IncidentTable } from "./IncidentTable.tsx";
-import { InfrastructurePanel } from "./InfrastructurePanel.tsx";
 import { KpiStrip } from "./KpiStrip.tsx";
+import { PressureChart } from "./PressureChart.tsx";
+import { SectorExposureChart } from "./SectorExposureChart.tsx";
 import { SourceHealthPanel } from "./SourceHealthPanel.tsx";
+import { ThreatFeedPanel } from "./ThreatFeedPanel.tsx";
 import { TopBar } from "./TopBar.tsx";
 import { Panel } from "./ui.tsx";
-import { CriticalCvePanel, KnownExploitedPanel } from "./VulnerabilityPanels.tsx";
 
 const RANKING_SIZE = 8;
 const RANSOMWARE_SOURCE = "Ransomware.live";
+/** Fontes que alimentam o feed OSINT, para sinalizar indisponibilidade. */
+const FEED_SOURCES: readonly SourceId[] = [
+  "cisa-kev",
+  "nist-nvd",
+  "abusech-feodo",
+  "sans-isc",
+];
 
 function toBarItems(
   items: readonly RankedItem[],
@@ -29,6 +44,41 @@ function toBarItems(
     value: item.incidents,
     detail: `≈ ${formatUsdCompact(item.estimatedLossUsd)}`,
   }));
+}
+
+/** Nome legível do recorte subnacional, a partir da divisão territorial oficial. */
+function describeSubnational(
+  filter: DashboardFilter,
+  territories: readonly Subdivision[],
+): string {
+  const subdivision = territories.find((item) => item.code === filter.state);
+  const municipality = subdivision?.municipalities.find(
+    (item) => item.id === filter.municipality,
+  );
+  if (municipality && subdivision) return `${municipality.name} (${subdivision.code})`;
+  return subdivision?.name ?? filter.state;
+}
+
+function SubnationalNotice({
+  filter,
+  territories,
+}: {
+  readonly filter: DashboardFilter;
+  readonly territories: readonly Subdivision[];
+}) {
+  return (
+    <p
+      aria-live="polite"
+      className="flex items-start gap-2 rounded-xl border border-accent/30 bg-accent/5 px-4 py-3 text-xs text-ink"
+    >
+      <MapPin aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+      <span>
+        Recorte selecionado: <strong>{describeSubnational(filter, territories)}</strong>.
+        Nenhuma fonte oficial de incidentes cibernéticos informa localização abaixo do
+        país; os indicadores a seguir referem-se a {countryName(filter.country)}.
+      </span>
+    </p>
+  );
 }
 
 function WaitingForGateway({ offline }: { readonly offline: boolean }) {
@@ -50,6 +100,7 @@ export function DashboardPage() {
   const { state, filterCommands, monitoring } = useDashboard();
   const snapshot = useObservable(state.snapshot);
   const agencies = useObservable(state.agencies);
+  const territories = useObservable(state.territories);
   const connection = useObservable(state.connection);
   const filter = useObservable(state.filter);
 
@@ -57,6 +108,18 @@ export function DashboardPage() {
     monitoring.start();
     return () => monitoring.stop();
   }, [monitoring]);
+
+  // O índice de texto completo é refeito só quando chegam novos dados; cada
+  // tecla digitada na busca apenas consulta o índice já montado.
+  const incidents = snapshot?.incidents;
+  const indexes = useMemo(
+    () =>
+      indexOverviewInput(
+        { incidents: incidents ?? [], agencies },
+        { sectorLabel, countryName },
+      ),
+    [incidents, agencies],
+  );
 
   const overview = useMemo(
     () =>
@@ -69,8 +132,9 @@ export function DashboardPage() {
           lossReference: snapshot.lossReference,
         },
         filter,
+        indexes,
       ),
-    [snapshot, agencies, filter],
+    [snapshot, agencies, filter, indexes],
   );
 
   if (!snapshot || !overview) {
@@ -81,6 +145,18 @@ export function DashboardPage() {
       </div>
     );
   }
+
+  // Servidores de comando e controle seguem o recorte geográfico; os demais
+  // indicadores não têm país informado pela fonte.
+  const feed = buildThreatFeed({
+    knownExploited: snapshot.knownExploited.recent,
+    criticalCves: snapshot.criticalCves,
+    c2Servers: overview.c2Servers,
+    topAttackers: snapshot.topAttackers,
+  });
+  const unavailableFeedSources = snapshot.sources
+    .filter((source) => FEED_SOURCES.includes(source.id) && source.health === "OFFLINE")
+    .map((source) => source.name);
 
   const continentItems: BarListItem[] = overview.byContinent.map((item) => ({
     key: item.key,
@@ -93,7 +169,7 @@ export function DashboardPage() {
     <div className="min-h-screen font-sans">
       <TopBar />
 
-      <main className="mx-auto max-w-[1600px] space-y-4 px-4 py-4 lg:px-6">
+      <main className="mx-auto max-w-7xl space-y-6 px-4 py-6">
         {connection.status !== "LIVE" && connection.status !== "CONNECTING" && (
           <p
             role="alert"
@@ -107,21 +183,46 @@ export function DashboardPage() {
         <FilterBar
           countryOptions={overview.countryOptions}
           sectorOptions={overview.sectorOptions}
+          territories={territories}
         />
-        <KpiStrip kpis={overview.kpis} snapshot={snapshot} />
+        {overview.subnational && (
+          <SubnationalNotice filter={filter} territories={territories} />
+        )}
+        <KpiStrip kpis={overview.kpis} />
 
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-          <Panel
-            title="Divulgações de ataques por dia"
-            source={RANSOMWARE_SOURCE}
-            aside="Dias em UTC"
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+          <PressureChart
+            incidents={overview.incidents}
+            criticalCves={snapshot.criticalCves}
+            live={connection.status === "LIVE"}
+            updatedAt={snapshot.generatedAt}
             className="xl:col-span-2"
-          >
-            <ColumnChart
-              data={overview.timeline}
-              emptyMessage="Sem divulgações no recorte selecionado."
-            />
-          </Panel>
+          />
+          <SectorExposureChart
+            sectors={overview.bySector}
+            selectedSector={filter.sector}
+            onSelect={(key) =>
+              filterCommands.selectSector(key === filter.sector ? ALL : key)
+            }
+          />
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+          <ThreatFeedPanel
+            items={feed}
+            unavailableSources={unavailableFeedSources}
+            knownExploited={snapshot.knownExploited}
+            className="lg:col-span-5"
+          />
+          <IncidentTable
+            incidents={overview.incidents}
+            lossReference={snapshot.lossReference}
+            orderedByRelevance={overview.searchActive}
+            className="lg:col-span-7"
+          />
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
           <Panel
             title="Ataques por continente"
             source={`${RANSOMWARE_SOURCE} e FIRST`}
@@ -138,9 +239,6 @@ export function DashboardPage() {
               }
             />
           </Panel>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <Panel title="Países mais afetados" source={RANSOMWARE_SOURCE}>
             <BarList
               items={toBarItems(overview.byCountry, countryName)}
@@ -148,16 +246,6 @@ export function DashboardPage() {
               selectedKey={filter.country}
               onSelect={(key) =>
                 filterCommands.selectCountry(key === filter.country ? ALL : key)
-              }
-            />
-          </Panel>
-          <Panel title="Setores mais afetados" source={RANSOMWARE_SOURCE}>
-            <BarList
-              items={toBarItems(overview.bySector, sectorLabel)}
-              emptyMessage="Sem ocorrências no recorte."
-              selectedKey={filter.sector}
-              onSelect={(key) =>
-                filterCommands.selectSector(key === filter.sector ? ALL : key)
               }
             />
           </Panel>
@@ -169,44 +257,7 @@ export function DashboardPage() {
           </Panel>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-          <IncidentTable
-            incidents={overview.incidents}
-            lossReference={snapshot.lossReference}
-            className="xl:col-span-2"
-          />
-          <KnownExploitedPanel
-            total={snapshot.knownExploited.total}
-            recent={snapshot.knownExploited.recent}
-            emptyMessage={emptyMessage(snapshot, "cisa-kev", "Catálogo sem entradas.")}
-          />
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <CriticalCvePanel
-            cves={snapshot.criticalCves}
-            emptyMessage={emptyMessage(
-              snapshot,
-              "nist-nvd",
-              "Nenhuma CVE crítica publicada no período.",
-            )}
-          />
-          <InfrastructurePanel
-            c2Servers={overview.c2Servers}
-            topAttackers={snapshot.topAttackers}
-            c2EmptyMessage={emptyMessage(
-              snapshot,
-              "abusech-feodo",
-              "Nenhum servidor listado para o recorte.",
-            )}
-            attackersEmptyMessage={emptyMessage(
-              snapshot,
-              "sans-isc",
-              "Nenhuma origem listada.",
-            )}
-          />
-          <AgencyDirectory agencies={overview.agencies} />
-        </div>
+        <AgencyDirectory agencies={overview.agencies} />
 
         <SourceHealthPanel
           sources={snapshot.sources}
@@ -214,7 +265,7 @@ export function DashboardPage() {
         />
       </main>
 
-      <footer className="mx-auto max-w-[1600px] space-y-1.5 px-4 pb-8 pt-2 text-[11px] leading-relaxed text-faint lg:px-6">
+      <footer className="mx-auto max-w-7xl space-y-1.5 px-4 pb-8 pt-2 text-[11px] leading-relaxed text-faint">
         <p>
           <strong className="font-medium text-muted">Sobre o prejuízo estimado.</strong>{" "}
           As fontes públicas não informam a perda financeira de cada incidente. O valor

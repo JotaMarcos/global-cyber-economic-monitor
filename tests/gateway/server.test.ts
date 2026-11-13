@@ -8,14 +8,22 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import {
   agencyDirectorySchema,
   CONTRACT_VERSION,
+  territoryDirectorySchema,
   threatSnapshotSchema,
   type AgencyDirectory,
+  type TerritoryDirectory,
   type ThreatSnapshot,
 } from "../../src/contract/threat-snapshot.ts";
 import { createGatewayServer } from "../../src/gateway/infrastructure/http/gateway-server.ts";
 import { ClientRateLimiter } from "../../src/gateway/infrastructure/resilience/client-rate-limiter.ts";
 import { ObservableState } from "../../src/shared/observable/observable.ts";
-import { FakeClock, makeAgency, makeSnapshot, MemoryLogger } from "../support/fakes.ts";
+import {
+  FakeClock,
+  makeAgency,
+  makeSnapshot,
+  makeSubdivisions,
+  MemoryLogger,
+} from "../support/fakes.ts";
 
 let staticDir: string;
 const servers: Server[] = [];
@@ -53,10 +61,18 @@ async function start(options: StartOptions = {}) {
     generatedAt: "2026-11-13T12:00:00.000Z",
     agencies: [makeAgency()],
   });
+  const territoryDirectory = new ObservableState<TerritoryDirectory>({
+    contractVersion: CONTRACT_VERSION,
+    generatedAt: "2026-11-13T12:00:00.000Z",
+    countryCode: "BR",
+    authority: "IBGE",
+    subdivisions: makeSubdivisions(),
+  });
   const clock = new FakeClock();
   const server = createGatewayServer({
     snapshot,
     agencyDirectory,
+    territoryDirectory,
     clock,
     logger: new MemoryLogger(),
     rateLimiter: new ClientRateLimiter(
@@ -119,6 +135,19 @@ describe("gateway HTTP: API", () => {
     const body: unknown = await (await fetch(`${base}/api/v1/agencies`)).json();
 
     expect(agencyDirectorySchema.parse(body).agencies).toHaveLength(1);
+  });
+
+  it("serve a divisão territorial oficial em conformidade com o contrato", async () => {
+    const { base } = await start();
+
+    const body: unknown = await (await fetch(`${base}/api/v1/territories`)).json();
+    const directory = territoryDirectorySchema.parse(body);
+
+    expect(directory.countryCode).toBe("BR");
+    expect(directory.subdivisions.map((subdivision) => subdivision.code)).toEqual([
+      "AM",
+      "SP",
+    ]);
   });
 
   it("resume a saúde do serviço", async () => {

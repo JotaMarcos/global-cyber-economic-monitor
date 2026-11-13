@@ -9,6 +9,8 @@ import {
   type Incident,
   type InfoconLevel,
   type LossReference,
+  type Subdivision,
+  type TerritoryDirectory,
   type ThreatSnapshot,
 } from "../../contract/threat-snapshot.ts";
 import {
@@ -36,7 +38,12 @@ export interface ThreatIntelMonitors {
   readonly internetStorm: SourceMonitor<InternetStormReading>;
   readonly c2Servers: SourceMonitor<readonly C2Server[]>;
   readonly agencies: SourceMonitor<readonly Agency[]>;
+  /** Divisão territorial oficial do Brasil (referência para filtros). */
+  readonly territories: SourceMonitor<readonly Subdivision[]>;
 }
+
+const TERRITORY_COUNTRY = "BR";
+const TERRITORY_AUTHORITY = "IBGE - Instituto Brasileiro de Geografia e Estatística";
 
 export interface ThreatIntelServiceOptions {
   readonly monitors: ThreatIntelMonitors;
@@ -52,8 +59,10 @@ export interface ThreatIntelServiceOptions {
 export class ThreatIntelService {
   readonly snapshot: ReadonlyObservable<ThreatSnapshot>;
   readonly agencyDirectory: ReadonlyObservable<AgencyDirectory>;
+  readonly territoryDirectory: ReadonlyObservable<TerritoryDirectory>;
   private readonly mutableSnapshot: ObservableState<ThreatSnapshot>;
   private readonly mutableDirectory: ObservableState<AgencyDirectory>;
+  private readonly mutableTerritories: ObservableState<TerritoryDirectory>;
   private readonly options: ThreatIntelServiceOptions;
   private teardown: CancelSchedule[] = [];
 
@@ -61,8 +70,10 @@ export class ThreatIntelService {
     this.options = options;
     this.mutableSnapshot = new ObservableState(this.buildSnapshot());
     this.mutableDirectory = new ObservableState(this.buildDirectory());
+    this.mutableTerritories = new ObservableState(this.buildTerritoryDirectory());
     this.snapshot = this.mutableSnapshot;
     this.agencyDirectory = this.mutableDirectory;
+    this.territoryDirectory = this.mutableTerritories;
   }
 
   start(): void {
@@ -77,6 +88,9 @@ export class ThreatIntelService {
     this.teardown.push(
       monitors.agencies.state.subscribe(() =>
         this.mutableDirectory.set(this.buildDirectory()),
+      ),
+      monitors.territories.state.subscribe(() =>
+        this.mutableTerritories.set(this.buildTerritoryDirectory()),
       ),
     );
     all.forEach((monitor) => void monitor.refresh());
@@ -113,6 +127,21 @@ export class ThreatIntelService {
       contractVersion: CONTRACT_VERSION,
       generatedAt: this.options.clock.now().toISOString(),
       agencies: [...this.options.monitors.agencies.state.getValue().data],
+    };
+  }
+
+  private buildTerritoryDirectory(): TerritoryDirectory {
+    return {
+      contractVersion: CONTRACT_VERSION,
+      generatedAt: this.options.clock.now().toISOString(),
+      countryCode: TERRITORY_COUNTRY,
+      authority: TERRITORY_AUTHORITY,
+      subdivisions: this.options.monitors.territories.state
+        .getValue()
+        .data.map((subdivision) => ({
+          ...subdivision,
+          municipalities: [...subdivision.municipalities],
+        })),
     };
   }
 }
