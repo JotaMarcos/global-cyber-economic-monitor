@@ -1,0 +1,55 @@
+import type { ThreatLog } from "../../domain/threat/threat-log";
+
+/** Base curada exibida até a primeira sincronização com os feeds reais. */
+export const OSINT_BASELINE: readonly ThreatLog[] = [
+  {
+    id: "osint-1",
+    agency: "SANS ISC / DShield",
+    ip: "185.220.101.42",
+    port: 443,
+    threatType: "DDoS SYN Flood / Scanner",
+    targetSector: "TERCIARIO",
+    severity: "ALTA",
+    status: "MITIGADO",
+  },
+  {
+    id: "osint-2",
+    agency: "Abuse.ch Feodo Tracker",
+    ip: "45.142.212.91",
+    port: 8080,
+    threatType: "Emotet / QakBot C2 Botnet",
+    targetSector: "SECUNDARIO",
+    severity: "CRÍTICA",
+    status: "BLOQUEADO",
+  },
+  {
+    id: "osint-3",
+    agency: "CISA KEV Feed",
+    ip: "91.240.118.172",
+    port: 22,
+    threatType: "CVE-2024-3400 Edge Exploit",
+    targetSector: "TERCIARIO",
+    severity: "CRÍTICA",
+    status: "BLOQUEADO",
+  },
+  {
+    id: "osint-4",
+    agency: "SANS ISC / DShield",
+    ip: "103.145.13.88",
+    port: 502,
+    threatType: "Modbus OT/SCADA Probe",
+    targetSector: "PRIMARIO",
+    severity: "ALTA",
+    status: "MITIGADO",
+  },
+  {
+    id: "osint-5",
+    agency: "Abuse.ch Feodo Tracker",
+    ip: "194.26.135.64",
+    port: 3389,
+    threatType: "Ransomware Brute-Force RDP",
+    targetSector: "ONG",
+    severity: "MÉDIA",
+    status: "BLOQUEADO",
+  },
+];
