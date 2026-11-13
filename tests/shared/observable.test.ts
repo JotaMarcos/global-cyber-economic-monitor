@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { ObservableState } from "../../src/shared/observable/observable";
+import { ObservableState } from "../../src/shared/observable/observable.ts";
 
 describe("ObservableState", () => {
   it("expõe o valor inicial", () => {

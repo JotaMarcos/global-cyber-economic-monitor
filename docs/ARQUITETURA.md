@@ -1,93 +1,149 @@
-# Decisões de Arquitetura
+# Arquitetura e Decisões de Projeto
 
-Este documento registra as decisões estruturais do projeto, o problema que cada uma resolve e a referência que a fundamenta.
+Este documento registra as decisões estruturais do sistema, o problema que cada uma resolve e a referência que a fundamenta.
 
-## 1. Clean Architecture e regra de dependência
+## 1. Visão de contexto
 
-**Contexto.** A versão inicial concentrava dados, regras de negócio, acesso à rede, temporizadores e interface em um único componente React de 1.424 linhas. Nenhuma regra podia ser testada sem renderizar a tela.
+```
+ Fontes públicas                Gateway (Node)                         Dashboard (React)
+┌───────────────────┐   HTTPS  ┌──────────────────────────────┐  SSE  ┌──────────────────────┐
+│ Ransomware.live   │ ───────► │ adaptadores + validação      │ ────► │ estado observável    │
+│ CISA KEV          │          │ monitor por fonte            │       │ domínio (filtros,    │
+│ NIST NVD          │          │  (circuit breaker, timeout,  │       │  agregações,         │
+│ SANS ISC          │          │   último conjunto válido)    │       │  estimativa)         │
+│ abuse.ch Feodo    │          │ serviço de agregação         │       │ componentes          │
+│ FIRST Teams       │          │ servidor HTTP + SSE          │       │                      │
+└───────────────────┘          └──────────────┬───────────────┘       └──────────┬───────────┘
+                                              └────── contrato versionado ───────┘
+                                                 src/contract (esquemas Zod)
+```
 
-**Decisão.** Separação em camadas concêntricas, com dependências de código apontando apenas para dentro (Martin, 2017, cap. 22).
+## 2. Domain-Driven Design
 
-| Camada           | Responsabilidade                                                            | Exemplos                                             |
-| ---------------- | --------------------------------------------------------------------------- | ---------------------------------------------------- |
-| `domain`         | Regras que existiriam mesmo sem software: filtragem, agregação, sanitização | `filterOrganizations`, `computeKpis`, `sanitizeText` |
-| `application`    | Orquestração de um objetivo do usuário e definição das portas               | `SyncOsintFeedsUseCase`, `OsintFeedGateway`          |
-| `infrastructure` | Detalhes substituíveis que implementam as portas                            | `SansIscOsintGateway`, `WebStorageThreatLogCache`    |
-| `presentation`   | Renderização e captura de eventos                                           | `DashboardPage`, `useObservable`                     |
-| `main`           | Montagem do grafo de objetos                                                | `createContainer`                                    |
+### 2.1 Contextos delimitados
 
-**Consequência.** Domínio e aplicação não importam React nem APIs do navegador. Essa propriedade é verificada por teste automatizado.
+| Contexto                 | Local          | Responsabilidade                                           |
+| ------------------------ | -------------- | ---------------------------------------------------------- |
+| Ingestão de inteligência | `src/gateway`  | Coletar, validar e normalizar dados de fontes heterogêneas |
+| Análise e apresentação   | `src/web`      | Recortar, agregar, estimar e exibir                        |
+| Contrato publicado       | `src/contract` | Linguagem compartilhada entre os dois contextos            |
 
-## 2. Princípios SOLID
+Os dois contextos não se importam mutuamente. A relação entre eles segue o padrão _Published Language_ (Evans, 2003, cap. 14): ambos dependem apenas do contrato. Cada adaptador de fonte atua como _Anticorruption Layer_, impedindo que o formato de uma API externa alcance o restante do sistema.
 
-| Princípio | Aplicação no código                                                                                                                                         |
-| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| SRP       | Cada caso de uso tem um único motivo de mudança. A inspeção de tráfego e o registro de telemetria, antes no mesmo temporizador, são casos de uso distintos. |
-| OCP       | Um novo feed OSINT é adicionado com outra implementação de `OsintFeedGateway`, sem alterar o caso de uso.                                                   |
-| LSP       | Os dublês de teste (`FakeClock`, `StubGateway`) substituem as implementações reais sem alterar o comportamento esperado pelos consumidores.                 |
-| ISP       | Portas pequenas e específicas (`Clock`, `RandomSource`, `RateLimiter`). A UI recebe `ReadonlyObservable`, sem acesso aos métodos de escrita.                |
-| DIP       | Casos de uso dependem de interfaces declaradas na própria camada de aplicação. A apresentação declara `DashboardDependencies` e a camada `main` o satisfaz. |
+### 2.2 Linguagem ubíqua
 
-Referência: Martin (2017, parte III).
+| Termo                | Significado no sistema                                                            |
+| -------------------- | --------------------------------------------------------------------------------- |
+| Incidente            | Organização divulgada publicamente como vítima por um grupo de ransomware         |
+| Grupo de ameaça      | Autor declarado da divulgação                                                     |
+| Fonte                | Serviço externo consultado periodicamente                                         |
+| Leitura              | Resultado de uma coleta: dados aceitos, quantidade válida e quantidade rejeitada  |
+| Retrato (_snapshot_) | Estado consolidado de todas as fontes em um instante                              |
+| Equipe de resposta   | Membro do FIRST (CSIRT, SOC, PSIRT ou ISAC)                                       |
+| Prejuízo estimado    | Incidentes multiplicados pelo custo de referência. Nunca representa perda apurada |
+| Custo de referência  | Parâmetro de estimativa, com citação da origem                                    |
+| Recorte              | Subconjunto definido pelos filtros de continente, país, setor e busca             |
 
-## 3. Separação do Singleton
+### 2.3 Regras de domínio
 
-**Contexto.** O painel exige instância única de alguns objetos: o rate limiter, o circuit breaker e os estados observáveis precisam ser compartilhados por todos os consumidores. A forma clássica do padrão Singleton (Gamma et al., 1994), com construtor privado e método estático `getInstance()`, atribui duas responsabilidades à mesma classe: a regra que ela implementa e o controle do próprio ciclo de vida. O resultado é estado global oculto, acoplamento direto dos consumidores à classe concreta e testes que interferem uns nos outros.
+As regras residem em funções puras, sem dependência de framework: `buildOverview`, `estimateLossUsd`, `continentOf` e `withContinent` (`src/web/domain`).
 
-**Decisão.** Separar as duas responsabilidades.
+## 3. Clean Architecture
+
+Em cada contexto, as dependências de código apontam para dentro (Martin, 2017, cap. 22).
+
+| Módulo                   | Pode depender de                                      |
+| ------------------------ | ----------------------------------------------------- |
+| `shared`, `contract`     | nenhum                                                |
+| `gateway/application`    | `contract`, `shared`                                  |
+| `gateway/infrastructure` | `gateway/application`, `contract`, `shared`           |
+| `gateway/main`           | todos os módulos do gateway                           |
+| `web/domain`             | `contract`, `shared`                                  |
+| `web/application`        | `web/domain`, `contract`, `shared`                    |
+| `web/infrastructure`     | `web/application`, `web/domain`, `contract`, `shared` |
+| `web/presentation`       | `web/application`, `web/domain`, `contract`, `shared` |
+| `web/main`               | todos os módulos do dashboard                         |
+
+A regra é verificada por `no-restricted-imports` no ESLint e pelo teste `tests/architecture/layer-boundaries.test.ts`.
+
+## 4. Princípios SOLID
+
+| Princípio | Aplicação                                                                                                                                |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| SRP       | Adaptador traduz, `SourceMonitor` cuida de resiliência e saúde, `ThreatIntelService` agrega, o servidor HTTP apenas expõe.               |
+| OCP       | Uma nova fonte é uma nova implementação de `ThreatSource<T>` registrada na raiz de composição. Nenhuma classe existente é alterada.      |
+| LSP       | Os dublês de teste substituem as implementações reais sem alterar o comportamento esperado pelos consumidores.                           |
+| ISP       | Portas pequenas (`Clock`, `Scheduler`, `HttpClient`, `CircuitBreaker`). A interface recebe `ReadonlyObservable`, sem métodos de escrita. |
+| DIP       | Camadas internas declaram as portas. A apresentação declara `DashboardDependencies` e a raiz de composição o satisfaz.                   |
+
+## 5. Separação do Singleton
+
+A forma clássica do padrão Singleton (Gamma et al., 1994), com `getInstance()` estático, atribui à classe o controle do próprio ciclo de vida e introduz estado global. Neste projeto as responsabilidades são separadas:
 
 1. As classes são comuns: recebem dependências pelo construtor e não possuem estado estático.
-2. A unicidade é uma política de tempo de vida aplicada externamente pelo contêiner (`src/main/container.ts`), por meio de `registerSingleton`.
-3. O grafo é montado em um único ponto, a raiz de composição (`src/main/composition-root.ts`), conforme Seemann e van Deursen (2019, cap. 4).
+2. A unicidade é uma política de tempo de vida aplicada pelo contêiner (`src/shared/di/container.ts`).
+3. Cada processo tem uma raiz de composição (`src/gateway/main` e `src/web/main`), único ponto que conhece as classes concretas (Seemann e van Deursen, 2019, cap. 4).
 
-**Consequência.** Cada contêiner mantém o próprio conjunto de instâncias. Os testes criam um contêiner por caso e substituem apenas as bordas (rede, relógio, aleatoriedade), exercitando o restante do grafo real.
+Uma exceção deliberada: o circuit breaker não é singleton. Cada fonte recebe a própria instância, para que a falha de uma agência não interrompa a coleta das demais.
 
-## 4. Estado com Observable
+## 6. Observable
 
-**Contexto.** O estado do painel é alterado por fontes independentes da interface: polling de rede a cada 30 s e um temporizador de telemetria a cada 2,2 s.
+O estado é mantido em `ObservableState<T>`, implementação do padrão Observer.
 
-**Decisão.** O estado reside em `ObservableState<T>` (`src/shared/observable/observable.ts`), implementação do padrão Observer (Gamma et al., 1994). Os casos de uso publicam valores e a interface se inscreve por meio do hook `useObservable`, construído sobre `useSyncExternalStore`, a API do React destinada a fontes externas de estado.
+- **No gateway**, cada `SourceMonitor` publica o estado da fonte. O serviço de agregação observa os monitores e republica o retrato. O servidor HTTP observa o retrato e o transmite aos clientes conectados.
+- **No dashboard**, o caso de uso de monitoramento publica o retrato recebido e os componentes se inscrevem por `useSyncExternalStore`.
 
-**Consequência.** Os casos de uso não conhecem o React. Cada componente é renderizado apenas quando o observável que ele consome emite: a atualização da série temporal não provoca nova renderização da tabela de organizações. Optou-se por implementação própria, com cerca de 40 linhas, em vez de uma biblioteca reativa completa, pois apenas inscrição e retenção do último valor são necessárias.
+O fluxo é reativo de ponta a ponta: uma nova coleta em qualquer fonte chega à tela sem consulta periódica por parte do navegador.
 
-## 5. Padrões de resiliência
+## 7. Resiliência
 
-| Padrão           | Implementação              | Referência                                        |
-| ---------------- | -------------------------- | ------------------------------------------------- |
-| Circuit Breaker  | `TimedCircuitBreaker`      | Nygard (2018, cap. 5)                             |
-| Token Bucket     | `TokenBucketRateLimiter`   | Tanenbaum e Wetherall (2011)                      |
-| Cache de reserva | `WebStorageThreatLogCache` | RFC 5861 (stale-while-revalidate, stale-if-error) |
+| Mecanismo                 | Implementação         | Efeito                                                                   |
+| ------------------------- | --------------------- | ------------------------------------------------------------------------ |
+| Circuit breaker por fonte | `TimedCircuitBreaker` | Suspende a coleta após 3 falhas e testa a recuperação após 60 s          |
+| Tempo limite por fonte    | `SourceMonitor`       | Aborta coletas lentas (20 a 45 s, conforme a fonte)                      |
+| Último conjunto válido    | `SourceMonitor`       | Em falha, os dados anteriores continuam servidos, sinalizados como cache |
+| Limite de taxa de entrada | `ClientRateLimiter`   | Token bucket por cliente (60 de capacidade, 10 por segundo)              |
+| Limite de conexões SSE    | `createGatewayServer` | Recusa novas conexões acima de 200, com `Retry-After`                    |
 
-Ambos os componentes temporais recebem a porta `Clock`, o que permite testar expiração e reposição de forma determinística, sem espera real.
+Referências: Nygard (2018, cap. 5) para circuit breaker e tempo limite; Tanenbaum e Wetherall (2011) para token bucket.
 
-## 6. Tratamento de dados não confiáveis
+## 8. Validação de dados
 
-Todo dado que cruza uma fronteira de confiança é validado antes do uso.
+Todo dado é tratado como não confiável ao cruzar uma fronteira.
 
-| Origem                   | Tratamento                                                                                                |
-| ------------------------ | --------------------------------------------------------------------------------------------------------- |
-| Resposta da API SANS ISC | O gateway traduz o JSON para `AttackerRecord` com campos `unknown`; o domínio sanitiza IP, porta e texto. |
-| `localStorage`           | Cada registro reidratado passa pelo type guard `isThreatLog`; registros adulterados são descartados.      |
-| Entrada de busca         | Sanitizada e limitada a 60 caracteres antes da comparação.                                                |
+| Fronteira               | Tratamento                                                                                          |
+| ----------------------- | --------------------------------------------------------------------------------------------------- |
+| Fonte externa → gateway | Esquema Zod por registro. Registro inválido é descartado e contabilizado; os demais seguem.         |
+| Envelope da resposta    | Formato inesperado é tratado como falha da fonte, com preservação do último conjunto válido.        |
+| Texto externo           | `cleanText` remove caracteres de controle e delimitadores de marcação e limita o tamanho.           |
+| Endereços e URLs        | IPs validados por formato. URLs aceitas apenas com esquema `http` ou `https`.                       |
+| Gateway → dashboard     | O dashboard valida cada mensagem contra o contrato. Mensagem inválida é descartada e contabilizada. |
 
-A sanitização é uma defesa adicional. A proteção primária contra XSS é o escape automático de texto realizado pelo React na renderização.
+As contagens de registros válidos e rejeitados por fonte são exibidas no painel "Integrações e qualidade dos dados". A proteção primária contra XSS é o escape de texto realizado pelo React, reforçado por uma política CSP restritiva enviada pelo gateway.
 
-## 7. Estratégia de testes
+## 9. Estratégia de testes e garantia de qualidade
 
-| Nível       | Escopo                                                                | Dublês                                   |
-| ----------- | --------------------------------------------------------------------- | ---------------------------------------- |
-| Unitário    | Funções de domínio, casos de uso, adaptadores                         | Portas substituídas por fakes em memória |
-| Integração  | `DashboardPage` com o grafo real montado pela raiz de composição      | Apenas rede, relógio, agendador e acaso  |
-| Arquitetura | Regra de dependência entre camadas e ausência de frameworks no núcleo | Nenhum                                   |
+| Nível               | Escopo                                                                                      | Dublês                                          |
+| ------------------- | ------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| Unitário            | Regras de domínio, casos de uso, resiliência, configuração                                  | Relógio, agendador e portas em memória          |
+| Contrato            | Cada adaptador processa uma amostra real da respectiva API e produz saída válida            | Apenas a rede, substituída pela amostra gravada |
+| Integração          | Gateway montado pela raiz de composição real; servidor HTTP em porta efêmera, incluindo SSE | Rede externa                                    |
+| Interface           | Painel completo com o grafo real do dashboard, consultado por papel e rótulo acessível      | Apenas o feed do gateway                        |
+| Arquitetura         | Regra de dependência, isolamento entre contextos, ausência de frameworks no núcleo          | Nenhum                                          |
+| Verificação ao vivo | `npm run verify:sources` consulta as fontes reais e relata rejeições                        | Nenhum                                          |
 
-Os testes de interface consultam a tela por papel e rótulo acessível, como faria um usuário, e não por detalhes de implementação.
+As amostras em `tests/fixtures` foram obtidas das APIs reais e reduzidas. Os endereços de sites de vazamento foram substituídos por valor neutro.
 
-## 8. Referências
+O pipeline de integração contínua executa verificação de tipos, lint, formatação, testes com limiar de cobertura e build a cada push.
 
+**Limitações conhecidas.** Não há teste de ponta a ponta automatizado em navegador no repositório; a verificação em navegador foi feita manualmente durante o desenvolvimento. Os testes de contrato detectam mudanças de formato apenas quando as amostras são regravadas ou quando `verify:sources` é executado.
+
+## 10. Referências
+
+- EVANS, E. _Domain-Driven Design: Tackling Complexity in the Heart of Software_. Addison-Wesley, 2003.
 - GAMMA, E.; HELM, R.; JOHNSON, R.; VLISSIDES, J. _Design Patterns: Elements of Reusable Object-Oriented Software_. Addison-Wesley, 1994.
 - MARTIN, R. C. _Clean Code: A Handbook of Agile Software Craftsmanship_. Prentice Hall, 2008.
 - MARTIN, R. C. _Clean Architecture: A Craftsman's Guide to Software Structure and Design_. Prentice Hall, 2017.
-- NOTTINGHAM, M. _RFC 5861: HTTP Cache-Control Extensions for Stale Content_. IETF, 2010.
 - NYGARD, M. T. _Release It! Design and Deploy Production-Ready Software_. 2. ed. Pragmatic Bookshelf, 2018.
 - SEEMANN, M.; VAN DEURSEN, S. _Dependency Injection Principles, Practices, and Patterns_. Manning, 2019.
 - TANENBAUM, A. S.; WETHERALL, D. J. _Computer Networks_. 5. ed. Pearson, 2011.

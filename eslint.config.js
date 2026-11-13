@@ -3,17 +3,17 @@ import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
-/** Regra de dependência da Clean Architecture: imports apontam para dentro. */
-const restrictLayer = (layer, forbiddenLayers, extraPatterns = []) => ({
-  files: [`src/${layer}/**/*.{ts,tsx}`],
+/** Regra de dependência: cada módulo declara de quais módulos não pode importar. */
+const restrict = (module, forbiddenModules, extraPatterns = []) => ({
+  files: [`src/${module}/**/*.{ts,tsx}`],
   rules: {
     "no-restricted-imports": [
       "error",
       {
         patterns: [
-          ...forbiddenLayers.map((forbidden) => ({
+          ...forbiddenModules.map((forbidden) => ({
             group: [`**/${forbidden}/**`],
-            message: `A camada "${layer}" não pode depender de "${forbidden}".`,
+            message: `"${module}" não pode depender de "${forbidden}".`,
           })),
           ...extraPatterns,
         ],
@@ -22,9 +22,13 @@ const restrictLayer = (layer, forbiddenLayers, extraPatterns = []) => ({
   },
 });
 
-const noFrameworks = {
-  group: ["react", "react-dom", "react-dom/*", "recharts", "lucide-react"],
+const noUiFrameworks = {
+  group: ["react", "react-dom", "react-dom/*", "lucide-react"],
   message: "Regras de negócio não dependem de frameworks de interface.",
+};
+const noNodeApis = {
+  group: ["node:*"],
+  message: "Esta camada não depende de APIs do Node.",
 };
 
 export default tseslint.config(
@@ -33,7 +37,7 @@ export default tseslint.config(
   ...tseslint.configs.strict,
   {
     files: ["**/*.{ts,tsx}"],
-    languageOptions: { globals: globals.browser },
+    languageOptions: { globals: { ...globals.browser, ...globals.node } },
     plugins: { "react-hooks": reactHooks },
     rules: {
       ...reactHooks.configs.recommended.rules,
@@ -43,22 +47,35 @@ export default tseslint.config(
       "no-console": "error",
     },
   },
+  { files: ["scripts/**/*.ts"], rules: { "no-console": "off" } },
   { files: ["*.config.{js,ts}"], languageOptions: { globals: globals.node } },
-  restrictLayer(
-    "shared",
-    ["domain", "application", "infrastructure", "presentation", "main"],
-    [noFrameworks],
+
+  restrict("shared", ["contract", "gateway", "web"], [noUiFrameworks, noNodeApis]),
+  restrict("contract", ["shared", "gateway", "web"], [noUiFrameworks, noNodeApis]),
+
+  restrict("gateway", ["web"], [noUiFrameworks]),
+  restrict(
+    "gateway/application",
+    ["infrastructure", "main", "web"],
+    [noUiFrameworks, noNodeApis],
   ),
-  restrictLayer(
-    "domain",
-    ["application", "infrastructure", "presentation", "main"],
-    [noFrameworks],
+  restrict("gateway/infrastructure", ["main", "web"], [noUiFrameworks]),
+
+  restrict("web", ["gateway"], [noNodeApis]),
+  restrict(
+    "web/domain",
+    ["application", "infrastructure", "presentation", "main", "gateway"],
+    [noUiFrameworks, noNodeApis],
   ),
-  restrictLayer(
-    "application",
-    ["infrastructure", "presentation", "main"],
-    [noFrameworks],
+  restrict(
+    "web/application",
+    ["infrastructure", "presentation", "main", "gateway"],
+    [noUiFrameworks, noNodeApis],
   ),
-  restrictLayer("infrastructure", ["presentation", "main"], [noFrameworks]),
-  restrictLayer("presentation", ["infrastructure", "main"]),
+  restrict(
+    "web/infrastructure",
+    ["presentation", "main", "gateway"],
+    [noUiFrameworks, noNodeApis],
+  ),
+  restrict("web/presentation", ["infrastructure", "main", "gateway"], [noNodeApis]),
 );
