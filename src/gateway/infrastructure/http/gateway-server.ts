@@ -12,7 +12,9 @@ import type {
 import type { ReadonlyObservable } from "../../../shared/observable/observable.ts";
 import type { Clock, Logger } from "../../application/ports.ts";
 import type { ClientRateLimiter } from "../resilience/client-rate-limiter.ts";
+import { buildOpenApiDocument } from "./openapi.ts";
 import { resolveStaticFile } from "./static-files.ts";
+import { OPENAPI_PATH, resolveDocsFile } from "./swagger-ui.ts";
 
 export interface GatewayServerOptions {
   readonly snapshot: ReadonlyObservable<ThreatSnapshot>;
@@ -51,6 +53,7 @@ export function createGatewayServer(options: GatewayServerOptions): Server {
   const { snapshot, agencyDirectory, territoryDirectory, clock, logger } = options;
   const startedAt = clock.now().getTime();
   const streamClients = new Set<ServerResponse>();
+  const openApiDocument = buildOpenApiDocument();
 
   const sendJson = (response: ServerResponse, status: number, body: unknown): void => {
     response.writeHead(status, {
@@ -115,6 +118,23 @@ export function createGatewayServer(options: GatewayServerOptions): Server {
     "/api/v1/territories": (_request, response) =>
       sendJson(response, 200, territoryDirectory.getValue()),
     "/api/v1/stream": stream,
+    [OPENAPI_PATH]: (_request, response) => sendJson(response, 200, openApiDocument),
+  };
+
+  /** Documentação interativa (Swagger UI), servida na mesma origem da API. */
+  const serveDocs = async (
+    request: IncomingMessage,
+    response: ServerResponse,
+    pathname: string,
+  ): Promise<boolean> => {
+    const file = await resolveDocsFile(pathname);
+    if (!file) return false;
+    response.writeHead(200, {
+      "content-type": file.contentType,
+      "cache-control": "no-cache",
+    });
+    response.end(request.method === "HEAD" ? undefined : file.body);
+    return true;
   };
 
   const serveStatic: Handler = async (request, response) => {
@@ -155,8 +175,9 @@ export function createGatewayServer(options: GatewayServerOptions): Server {
       return sendError(response, 429, "Limite de requisições excedido.");
     }
     const route = routes[pathname];
-    if (!route) return sendError(response, 404, "Rota inexistente.");
-    return route(request, response);
+    if (route) return route(request, response);
+    if (await serveDocs(request, response, pathname)) return;
+    return sendError(response, 404, "Rota inexistente.");
   };
 
   const server = createServer((request, response) => {
