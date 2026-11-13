@@ -25,6 +25,9 @@ export default defineConfig({
     },
   },
   server: {
+    // Sem isto o Vite escuta em "localhost", que no Windows pode resolver só
+    // para IPv6 (::1) e recusar conexões em 127.0.0.1.
+    host: "127.0.0.1",
     // Em desenvolvimento, o dashboard alcança o gateway pela mesma origem.
     proxy: { "/api": { target: GATEWAY_URL, changeOrigin: true } },
   },
