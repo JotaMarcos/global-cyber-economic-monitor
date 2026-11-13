@@ -47,8 +47,19 @@ export const TOKENS = {
   server: createToken<Server>("GatewayServer"),
 } as const;
 
+export interface GatewayHostingOptions {
+  /**
+   * Cabeçalho confiável com o IP do cliente, quando o gateway roda atrás de
+   * um proxy (ex.: `x-nf-client-connection-ip` no Netlify).
+   */
+  readonly clientIpHeader?: string;
+}
+
 /** Raiz de composição do gateway: único ponto que conhece as classes concretas. */
-export function createGatewayContainer(config: GatewayConfig): Container {
+export function createGatewayContainer(
+  config: GatewayConfig,
+  hosting: GatewayHostingOptions = {},
+): Container {
   const container = new Container();
 
   const monitor = <T>(c: Container, source: ThreatSource<T>, emptyData: T) =>
@@ -119,6 +130,7 @@ export function createGatewayContainer(config: GatewayConfig): Container {
         allowedOrigin,
         maxStreamClients: MAX_STREAM_CLIENTS,
         heartbeatMs: HEARTBEAT_MS,
+        clientIpHeader: hosting.clientIpHeader ?? null,
       });
     });
 }
