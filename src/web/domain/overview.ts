@@ -4,10 +4,15 @@ import type {
   Incident,
   LossReference,
 } from "../../contract/threat-snapshot.ts";
-import { ALL, type DashboardFilter } from "./filter.ts";
+import { ALL, isSubnational, type DashboardFilter } from "./filter.ts";
+import {
+  buildSearchIndex,
+  searchIndex,
+  type SearchHit,
+  type SearchIndex,
+} from "./full-text-search.ts";
 import { CONTINENT_IDS, continentOf, type ContinentId } from "./geography.ts";
 
-const MAX_SEARCH_LENGTH = 80;
 const DAY_MS = 86_400_000;
 const MAX_TIMELINE_DAYS = 60;
 
@@ -36,6 +41,9 @@ export interface OverviewKpis {
   /** Incidentes cuja fonte não informou o país. */
   readonly unlocated: number;
   readonly agencies: number;
+  /** Servidores de comando e controle hospedados no recorte geográfico. */
+  readonly c2Servers: number;
+  readonly c2ServersOnline: number;
 }
 
 export interface Overview {
@@ -50,6 +58,10 @@ export interface Overview {
   readonly timeline: readonly DailyCount[];
   readonly countryOptions: readonly string[];
   readonly sectorOptions: readonly string[];
+  /** Há termo de busca: incidentes e equipes vêm ordenados por relevância. */
+  readonly searchActive: boolean;
+  /** Recorte abaixo do país: os dados permanecem no nível do país. */
+  readonly subnational: boolean;
 }
 
 export interface OverviewInput {
@@ -67,22 +79,74 @@ export function estimateLossUsd(incidentCount: number, reference: LossReference)
   return incidentCount * reference.perIncidentUsd;
 }
 
-function normalize(text: string): string {
-  return text
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .toLowerCase()
-    .trim();
+/**
+ * Descrições legíveis indexadas junto com os códigos, para que a busca
+ * encontre "saúde" ou "brasil", e não apenas "Healthcare" ou "BR".
+ */
+export interface SearchVocabulary {
+  sectorLabel(sector: string): string;
+  countryName(code: string | null): string;
+}
+
+const RAW_VOCABULARY: SearchVocabulary = {
+  sectorLabel: (sector) => sector,
+  countryName: (code) => code ?? "",
+};
+
+export interface OverviewIndexes {
+  readonly incidents: SearchIndex;
+  readonly agencies: SearchIndex;
+}
+
+/** Índices de texto completo. Montados uma vez por conjunto de dados recebido. */
+export function indexOverviewInput(
+  input: Pick<OverviewInput, "incidents" | "agencies">,
+  vocabulary: SearchVocabulary = RAW_VOCABULARY,
+): OverviewIndexes {
+  return {
+    incidents: buildSearchIndex(
+      input.incidents.map((incident) => ({
+        id: incident.id,
+        fields: [
+          { text: incident.organization, weight: 3 },
+          { text: incident.threatGroup, weight: 2 },
+          { text: incident.sector, weight: 1 },
+          { text: vocabulary.sectorLabel(incident.sector), weight: 1 },
+          { text: vocabulary.countryName(incident.countryCode), weight: 1 },
+        ],
+      })),
+    ),
+    agencies: buildSearchIndex(
+      input.agencies.map((agency) => ({
+        id: agency.id,
+        fields: [
+          { text: agency.name, weight: 3 },
+          { text: agency.host, weight: 1 },
+          { text: agency.types.join(" "), weight: 1 },
+          { text: vocabulary.countryName(agency.countryCode), weight: 1 },
+        ],
+      })),
+    ),
+  };
+}
+
+/** Mantém os itens encontrados pela busca, em ordem de relevância. */
+function applySearch<T>(
+  items: readonly T[],
+  hits: readonly SearchHit[] | null,
+  idOf: (item: T) => string,
+): T[] {
+  if (hits === null) return [...items];
+  const rankById = new Map(hits.map((hit, rank) => [hit.id, rank]));
+  return items
+    .filter((item) => rankById.has(idOf(item)))
+    .sort((a, b) => rankById.get(idOf(a))! - rankById.get(idOf(b))!);
 }
 
 function matchesGeography(countryCode: string | null, filter: DashboardFilter): boolean {
   if (filter.country !== ALL) return countryCode === filter.country;
   if (filter.continent !== ALL) return continentOf(countryCode) === filter.continent;
   return true;
-}
-
-function matchesSearch(query: string, ...fields: string[]): boolean {
-  return query === "" || fields.some((field) => normalize(field).includes(query));
 }
 
 function rank(
@@ -131,24 +195,36 @@ function unique(values: Iterable<string>): string[] {
   return [...new Set(values)].sort((a, b) => a.localeCompare(b));
 }
 
-export function buildOverview(input: OverviewInput, filter: DashboardFilter): Overview {
+/**
+ * Monta o recorte do painel. Estado e município não restringem os dados:
+ * nenhuma fonte oficial de incidentes informa localização abaixo do país, e o
+ * painel não atribui ocorrências a localidades por suposição.
+ */
+export function buildOverview(
+  input: OverviewInput,
+  filter: DashboardFilter,
+  indexes: OverviewIndexes = indexOverviewInput(input),
+): Overview {
   const { lossReference } = input;
-  const query = normalize(filter.searchTerm.slice(0, MAX_SEARCH_LENGTH));
-
-  const matchesNonGeo = (incident: Incident) =>
-    (filter.sector === ALL || incident.sector === filter.sector) &&
-    matchesSearch(query, incident.organization, incident.threatGroup, incident.sector);
+  const incidentHits = searchIndex(indexes.incidents, filter.searchTerm);
+  const agencyHits = searchIndex(indexes.agencies, filter.searchTerm);
 
   // O comparativo por continente ignora o recorte geográfico: serve de mapa de
   // navegação e permanece completo mesmo com um continente selecionado.
-  const comparable = input.incidents.filter(matchesNonGeo);
+  const comparable = applySearch(
+    input.incidents.filter(
+      (incident) => filter.sector === ALL || incident.sector === filter.sector,
+    ),
+    incidentHits,
+    (incident) => incident.id,
+  );
   const incidents = comparable.filter((incident) =>
     matchesGeography(incident.countryCode, filter),
   );
-  const agencies = input.agencies.filter(
-    (agency) =>
-      matchesGeography(agency.countryCode, filter) &&
-      matchesSearch(query, agency.name, agency.host),
+  const agencies = applySearch(
+    input.agencies.filter((agency) => matchesGeography(agency.countryCode, filter)),
+    agencyHits,
+    (agency) => agency.id,
   );
   const c2Servers = input.c2Servers.filter((server) =>
     matchesGeography(server.countryCode, filter),
@@ -171,6 +247,8 @@ export function buildOverview(input: OverviewInput, filter: DashboardFilter): Ov
       activeGroups: byGroup.length,
       unlocated: incidents.filter((incident) => incident.countryCode === null).length,
       agencies: agencies.length,
+      c2Servers: c2Servers.length,
+      c2ServersOnline: c2Servers.filter((server) => server.online).length,
     },
     byContinent: CONTINENT_IDS.map((continent) => {
       const count = comparable.filter(
@@ -196,5 +274,7 @@ export function buildOverview(input: OverviewInput, filter: DashboardFilter): Ov
       ].filter((code): code is string => code !== null && inScope(code)),
     ),
     sectorOptions: unique(input.incidents.map((incident) => incident.sector)),
+    searchActive: incidentHits !== null,
+    subnational: isSubnational(filter),
   };
 }

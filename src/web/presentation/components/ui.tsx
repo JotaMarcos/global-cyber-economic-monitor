@@ -76,11 +76,11 @@ export function Panel({ title, source, aside, className = "", children }: PanelP
   return (
     <section
       aria-label={title}
-      className={`flex min-w-0 flex-col rounded-lg border border-line bg-panel ${className}`}
+      className={`flex min-w-0 flex-col rounded-xl border border-line bg-panel/70 ${className}`}
     >
-      <header className="flex items-start justify-between gap-3 border-b border-line px-4 py-3">
+      <header className="flex items-start justify-between gap-3 border-b border-line/80 px-4 py-3">
         <div className="min-w-0">
-          <h2 className="truncate text-[13px] font-semibold text-ink">{title}</h2>
+          <h2 className="truncate text-sm font-semibold text-white">{title}</h2>
           <p className="truncate text-[11px] text-faint">Fonte: {source}</p>
         </div>
         {aside && <div className="shrink-0 text-[11px] text-muted">{aside}</div>}

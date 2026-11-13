@@ -43,6 +43,12 @@ export const formatClock = (iso: string): string => `${clock.format(new Date(iso
 export const formatDay = (day: string): string =>
   shortDay.format(new Date(`${day}T00:00:00Z`));
 
+/** Rótulo de hora cheia em UTC (ex.: "13/11 08h"). */
+export const formatHour = (iso: string): string => {
+  const date = new Date(iso);
+  return `${shortDay.format(date)} ${String(date.getUTCHours()).padStart(2, "0")}h`;
+};
+
 export function formatDuration(seconds: number): string {
   if (seconds < 3600) return `${Math.round(seconds / 60)} min`;
   return `${Math.round(seconds / 3600)} h`;

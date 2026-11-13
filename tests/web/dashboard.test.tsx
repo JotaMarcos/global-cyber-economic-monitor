@@ -18,6 +18,7 @@ import {
   makeIncident,
   makeSnapshot,
   makeSource,
+  makeSubdivisions,
 } from "../support/fakes.ts";
 
 const snapshot: ThreatSnapshot = makeSnapshot({
@@ -122,6 +123,7 @@ describe("DashboardPage", () => {
       makeAgency({ id: "cert-br", name: "CERT.br", countryCode: "BR" }),
       makeAgency({ id: "cisa", name: "CISA Central", countryCode: "US", website: null }),
     ];
+    feed.territories = makeSubdivisions();
   });
 
   it("informa que está conectando antes do primeiro retrato", () => {
@@ -141,13 +143,14 @@ describe("DashboardPage", () => {
     renderDashboard();
     await receive();
 
-    expect(screen.getByText("Ao vivo")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Ao vivo");
     expect(screen.getByText("5 de 6")).toBeInTheDocument();
     expect(screen.getByText("Amarelo")).toBeInTheDocument();
     expect(screen.getByText("US$ 13,3 mi")).toBeInTheDocument();
     expect(screen.getByText("Estimativa")).toBeInTheDocument();
     expect(screen.getByText("1 sem país informado")).toBeInTheDocument();
-    expect(screen.getByText("361 usadas em ransomware")).toBeInTheDocument();
+    expect(screen.getByText("1 online no recorte")).toBeInTheDocument();
+    expect(screen.getByText(/361 usadas em ransomware/)).toBeInTheDocument();
   });
 
   it("lista as organizações com a ressalva de alegação não confirmada", async () => {
@@ -231,27 +234,120 @@ describe("DashboardPage", () => {
     expect(panel("Organizações atacadas").getByText("3 registros")).toBeInTheDocument();
   });
 
-  it("declara que estado e município não estão disponíveis nas fontes", async () => {
+  /** Retrato com a fonte territorial oficial já coletada. */
+  const withTerritories: ThreatSnapshot = {
+    ...snapshot,
+    sources: [
+      ...snapshot.sources,
+      makeSource({ id: "ibge-localidades", name: "IBGE Localidades" }),
+    ],
+  };
+
+  it("oferece estado e município do Brasil pela divisão territorial oficial", async () => {
+    const user = userEvent.setup();
+    renderDashboard();
+    await receive(withTerritories);
+    const state = screen.getByLabelText("Estado");
+    const municipality = screen.getByLabelText("Município");
+
+    expect(state).toBeDisabled();
+    expect(screen.getByText(/divisão territorial oficial do IBGE/)).toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText("País"), "BR");
+    expect(state).toBeEnabled();
+    expect(municipality).toBeDisabled();
+
+    await user.selectOptions(state, "AM");
+    expect(
+      within(municipality)
+        .getAllByRole("option")
+        .map((option) => option.textContent),
+    ).toEqual(["Todos os municípios", "Itacoatiara", "Manaus"]);
+
+    await user.selectOptions(municipality, "1302603");
+    expect(screen.getByText("Manaus (AM)")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Nenhuma fonte oficial de incidentes cibernéticos/),
+    ).toBeInTheDocument();
+    // Os dados permanecem no nível do país: o incidente brasileiro segue listado.
+    expect(
+      panel("Organizações atacadas").getByRole("rowheader", { name: "Hospital Central" }),
+    ).toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText("País"), "US");
+    expect(state).toHaveValue("ALL");
+    expect(municipality).toHaveValue("ALL");
+    expect(state).toBeDisabled();
+  });
+
+  it("busca em texto completo por prefixo, sem acentos e pelo nome do setor", async () => {
+    const user = userEvent.setup();
+    renderDashboard();
+    await receive();
+    const search = screen.getByLabelText("Busca");
+
+    await user.type(search, "hosp");
+    expect(panel("Organizações atacadas").getByText("1 registros")).toBeInTheDocument();
+    expect(screen.getByText("Ordenados por relevância")).toBeInTheDocument();
+
+    await user.clear(search);
+    await user.type(search, "SAUDE");
+    expect(
+      panel("Organizações atacadas").getByRole("rowheader", { name: "Hospital Central" }),
+    ).toBeInTheDocument();
+    expect(panel("Organizações atacadas").getByText("1 registros")).toBeInTheDocument();
+
+    await user.clear(search);
+    await user.type(search, "cert");
+    expect(
+      panel("Equipes de resposta a incidentes").getByText("CERT.br"),
+    ).toBeInTheDocument();
+    expect(
+      panel("Equipes de resposta a incidentes").queryByText("CISA Central"),
+    ).toBeNull();
+  });
+
+  it("abre e fecha a documentação da API do gateway", async () => {
+    const user = userEvent.setup();
     renderDashboard();
     await receive();
 
-    expect(
-      screen.getByText(/estado, município ou comunidade não estão disponíveis/),
-    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "API e arquitetura" }));
+    const dialog = screen.getByRole("dialog", { name: "API e arquitetura do gateway" });
+    expect(within(dialog).getByText("GET /api/v1/territories")).toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "API e arquitetura" }));
+    await user.click(screen.getByRole("button", { name: "Fechar" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("resume circuitos e validação na barra de telemetria do gateway", async () => {
+    renderDashboard();
+    await receive();
+
+    expect(screen.getByText("6/6")).toBeInTheDocument();
+    expect(screen.getByText("1", { selector: "span.text-warning" })).toBeInTheDocument();
   });
 
   it("exibe vulnerabilidades, infraestrutura maliciosa e equipes", async () => {
     renderDashboard();
     await receive();
 
-    const kev = panel("Vulnerabilidades exploradas ativamente");
-    expect(kev.getByText("CVE-2026-1000")).toBeInTheDocument();
-    expect(kev.getByText("Ransomware")).toBeInTheDocument();
+    const feed = panel("Feed OSINT tratado e sanitizado");
+    expect(feed.getByText("CVE-2026-1000")).toBeInTheDocument();
+    expect(feed.getByText(/usada em ransomware/)).toBeInTheDocument();
+    expect(feed.getByText("50.16.16.211:443")).toBeInTheDocument();
+    expect(feed.getByText("Ativo")).toBeInTheDocument();
+    expect(feed.getByText("319.739 registros contra 1 alvos")).toBeInTheDocument();
 
-    const infrastructure = panel("Infraestrutura maliciosa");
-    expect(infrastructure.getByText("50.16.16.211:443")).toBeInTheDocument();
-    expect(infrastructure.getByText("Ativo")).toBeInTheDocument();
-    expect(infrastructure.getByText("319.739 registros")).toBeInTheDocument();
+    await userEvent
+      .setup()
+      .click(feed.getByRole("button", { name: "Comando e controle" }));
+    expect(feed.queryByText("CVE-2026-1000")).toBeNull();
+    expect(feed.getByText("1 indicadores.")).toBeInTheDocument();
 
     expect(
       panel("Equipes de resposta a incidentes").getByRole("link", {
@@ -265,7 +361,9 @@ describe("DashboardPage", () => {
     await receive();
 
     expect(
-      panel("CVEs críticas recentes").getByText("Fonte indisponível no momento."),
+      panel("Feed OSINT tratado e sanitizado").getByText(
+        "NIST NVD: fonte indisponível no momento.",
+      ),
     ).toBeInTheDocument();
   });
 

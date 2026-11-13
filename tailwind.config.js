@@ -1,21 +1,21 @@
-/** Tokens de design do painel (tema escuro único). */
+/** Tokens de design do painel (tema escuro único, paleta ardósia e ciano). */
 export default {
   content: ["./index.html", "./src/web/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
-        canvas: "#090c11",
-        panel: "#10151c",
-        raised: "#171d26",
-        line: "#232b37",
-        ink: "#e7eaf0",
-        muted: "#a3acb9",
-        faint: "#727d8c",
-        accent: "#3987e5",
-        good: "#0ca30c",
-        warning: "#fab219",
-        serious: "#ec835a",
-        critical: "#d03b3b",
+        canvas: "#020617",
+        panel: "#0f172a",
+        raised: "#1e293b",
+        line: "#1e293b",
+        ink: "#f1f5f9",
+        muted: "#94a3b8",
+        faint: "#7d8ba1",
+        accent: "#22d3ee",
+        good: "#34d399",
+        warning: "#fbbf24",
+        serious: "#fb923c",
+        critical: "#f43f5e",
       },
       fontFamily: {
         sans: ["Inter", "ui-sans-serif", "system-ui", "Segoe UI", "Roboto", "sans-serif"],

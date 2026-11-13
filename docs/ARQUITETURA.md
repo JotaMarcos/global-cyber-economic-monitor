@@ -43,10 +43,23 @@ Os dois contextos não se importam mutuamente. A relação entre eles segue o pa
 | Prejuízo estimado    | Incidentes multiplicados pelo custo de referência. Nunca representa perda apurada |
 | Custo de referência  | Parâmetro de estimativa, com citação da origem                                    |
 | Recorte              | Subconjunto definido pelos filtros de continente, país, setor e busca             |
+| Divisão territorial  | Estados e municípios oficiais (IBGE). Referência para filtro, nunca para dados    |
+| Recorte subnacional  | Estado ou município selecionado. Os indicadores permanecem no nível do país       |
 
 ### 2.3 Regras de domínio
 
-As regras residem em funções puras, sem dependência de framework: `buildOverview`, `estimateLossUsd`, `continentOf` e `withContinent` (`src/web/domain`).
+As regras residem em funções puras, sem dependência de framework: `buildOverview`, `estimateLossUsd`, `continentOf`, `withContinent`, `withCountry`, `withState` e a busca de texto completo (`src/web/domain`).
+
+### 2.4 Busca de texto completo
+
+A busca por organização, grupo de ameaça, setor, país ou equipe usa um índice invertido em memória (`src/web/domain/full-text-search.ts`):
+
+1. **Análise léxica.** Documentos e consultas passam pelo mesmo tratamento: minúsculas, remoção de acentos, separação em termos e descarte de palavras vazias em português e inglês.
+2. **Índice invertido.** Cada termo aponta para os documentos em que ocorre, com frequência ponderada pelo peso do campo (nome 3, grupo 2, demais 1). O índice é montado uma vez por conjunto de dados recebido; cada tecla apenas o consulta.
+3. **Consulta.** Todos os termos precisam ocorrer (semântica E). Cada termo casa por igualdade ou por prefixo, localizado por busca binária no vocabulário ordenado. Trechos entre aspas exigem a frase exata.
+4. **Relevância.** Os resultados são ordenados pela função BM25 (Robertson e Zaragoza, 2009), com correspondência por prefixo valendo menos que a exata.
+
+Rótulos legíveis (nome do setor em português, nome do país) são indexados junto com os códigos, de modo que "saúde" e "brasil" encontram registros que a fonte classifica como "Healthcare" e "BR".
 
 ## 3. Clean Architecture
 
@@ -145,5 +158,6 @@ O pipeline de integração contínua executa verificação de tipos, lint, forma
 - MARTIN, R. C. _Clean Code: A Handbook of Agile Software Craftsmanship_. Prentice Hall, 2008.
 - MARTIN, R. C. _Clean Architecture: A Craftsman's Guide to Software Structure and Design_. Prentice Hall, 2017.
 - NYGARD, M. T. _Release It! Design and Deploy Production-Ready Software_. 2. ed. Pragmatic Bookshelf, 2018.
+- ROBERTSON, S.; ZARAGOZA, H. The Probabilistic Relevance Framework: BM25 and Beyond. _Foundations and Trends in Information Retrieval_, v. 3, n. 4, p. 333-389, 2009.
 - SEEMANN, M.; VAN DEURSEN, S. _Dependency Injection Principles, Practices, and Patterns_. Manning, 2019.
 - TANENBAUM, A. S.; WETHERALL, D. J. _Computer Networks_. 5. ed. Pearson, 2011.

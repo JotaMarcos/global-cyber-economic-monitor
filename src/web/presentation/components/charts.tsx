@@ -1,5 +1,4 @@
-import type { DailyCount } from "../../domain/overview.ts";
-import { formatDay, formatInteger } from "../format.ts";
+import { formatInteger } from "../format.ts";
 import { EmptyState } from "./ui.tsx";
 
 export interface BarListItem {
@@ -68,69 +67,5 @@ export function BarList({ items, emptyMessage, selectedKey, onSelect }: BarListP
         );
       })}
     </ul>
-  );
-}
-
-const MAX_LABELED_COLUMNS = 14;
-
-interface ColumnChartProps {
-  readonly data: readonly DailyCount[];
-  readonly emptyMessage: string;
-}
-
-/** Colunas diárias de série única, com eixo próprio e valor ao passar o cursor. */
-export function ColumnChart({ data, emptyMessage }: ColumnChartProps) {
-  if (data.length === 0) return <EmptyState>{emptyMessage}</EmptyState>;
-  const max = Math.max(1, ...data.map((point) => point.incidents));
-  const labelEveryColumn = data.length <= MAX_LABELED_COLUMNS;
-
-  return (
-    <figure className="flex h-full min-h-44 flex-col">
-      <div className="flex min-h-0 flex-1 gap-2">
-        <div
-          aria-hidden="true"
-          className="flex flex-col justify-between pb-px text-right text-[10px] tabular-nums text-faint"
-        >
-          <span>{formatInteger(max)}</span>
-          <span>0</span>
-        </div>
-        <ol className="flex min-w-0 flex-1 items-end gap-[2px] border-b border-l border-line pl-px">
-          {data.map((point) => (
-            <li
-              key={point.day}
-              className="group relative flex h-full min-w-0 flex-1 items-end justify-center"
-            >
-              <span
-                className="block w-full max-w-16 rounded-t-[4px] bg-accent group-hover:bg-ink"
-                style={{ height: `${(point.incidents / max) * 100}%` }}
-              />
-              <span
-                role="tooltip"
-                className="pointer-events-none absolute bottom-full z-10 mb-1 hidden whitespace-nowrap rounded border border-line bg-raised px-2 py-1 text-[11px] text-ink shadow-lg group-hover:block"
-              >
-                {formatDay(point.day)}: {formatInteger(point.incidents)}
-              </span>
-              <span className="sr-only">
-                {formatDay(point.day)}: {formatInteger(point.incidents)} incidentes
-              </span>
-            </li>
-          ))}
-        </ol>
-      </div>
-      <figcaption className="mt-1.5 flex pl-6 text-[10px] tabular-nums text-faint">
-        {labelEveryColumn ? (
-          data.map((point) => (
-            <span key={point.day} className="min-w-0 flex-1 text-center">
-              {formatDay(point.day)}
-            </span>
-          ))
-        ) : (
-          <span className="flex flex-1 justify-between">
-            <span>{formatDay(data[0]!.day)}</span>
-            <span>{formatDay(data.at(-1)!.day)}</span>
-          </span>
-        )}
-      </figcaption>
-    </figure>
   );
 }

@@ -5,6 +5,7 @@ import {
   type Agency,
   type Incident,
   type SourceStatus,
+  type Subdivision,
   type ThreatSnapshot,
 } from "../../src/contract/threat-snapshot.ts";
 import type {
@@ -35,6 +36,7 @@ export const FIXTURE_ROUTES: Record<string, string> = {
   "isc.sans.edu/api/topips": "sans-isc.topips.json",
   "feodotracker.abuse.ch": "abusech-feodo.ipblocklist.json",
   "api.first.org": "first.teams.json",
+  "servicodados.ibge.gov.br": "ibge.municipios.json",
 };
 
 export class FakeClock implements Clock {
@@ -205,4 +207,36 @@ export class FakeThreatFeed implements ThreatFeed {
       ? Promise.reject(this.agencies)
       : Promise.resolve(this.agencies);
   }
+
+  territories: Subdivision[] | Error = [];
+  territoryLoads = 0;
+
+  loadTerritories(): Promise<Subdivision[]> {
+    this.territoryLoads += 1;
+    return this.territories instanceof Error
+      ? Promise.reject(this.territories)
+      : Promise.resolve(this.territories);
+  }
+}
+
+/** Recorte real e reduzido da divisão territorial do IBGE. */
+export function makeSubdivisions(): Subdivision[] {
+  return [
+    {
+      code: "AM",
+      name: "Amazonas",
+      municipalities: [
+        { id: "1301902", name: "Itacoatiara" },
+        { id: "1302603", name: "Manaus" },
+      ],
+    },
+    {
+      code: "SP",
+      name: "São Paulo",
+      municipalities: [
+        { id: "3509502", name: "Campinas" },
+        { id: "3550308", name: "São Paulo" },
+      ],
+    },
+  ];
 }

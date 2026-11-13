@@ -10,6 +10,7 @@ import { FetchHttpClient } from "../src/gateway/infrastructure/http/fetch-http-c
 import { CisaKevSource } from "../src/gateway/infrastructure/sources/cisa-kev-source.ts";
 import { FeodoTrackerSource } from "../src/gateway/infrastructure/sources/feodo-tracker-source.ts";
 import { FirstTeamsSource } from "../src/gateway/infrastructure/sources/first-teams-source.ts";
+import { IbgeLocalitiesSource } from "../src/gateway/infrastructure/sources/ibge-localities-source.ts";
 import { NistNvdSource } from "../src/gateway/infrastructure/sources/nist-nvd-source.ts";
 import { RansomwareLiveSource } from "../src/gateway/infrastructure/sources/ransomware-live-source.ts";
 import { SansIscSource } from "../src/gateway/infrastructure/sources/sans-isc-source.ts";
@@ -23,6 +24,7 @@ const sources: ThreatSource<unknown>[] = [
   new SansIscSource(http),
   new FeodoTrackerSource(http),
   new FirstTeamsSource(http),
+  new IbgeLocalitiesSource(http),
 ];
 
 const results = await Promise.all(

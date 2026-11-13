@@ -5,7 +5,7 @@ import { z } from "zod";
  * Os dois lados validam contra estes esquemas: o gateway antes de servir e o
  * dashboard ao receber.
  */
-export const CONTRACT_VERSION = "1";
+export const CONTRACT_VERSION = "2";
 
 const timestamp = z.iso.datetime({ offset: true });
 const calendarDate = z.iso.date();
@@ -18,6 +18,7 @@ export const SOURCE_IDS = [
   "sans-isc",
   "abusech-feodo",
   "first-teams",
+  "ibge-localidades",
 ] as const;
 export const sourceIdSchema = z.enum(SOURCE_IDS);
 
@@ -126,6 +127,31 @@ export const agencyDirectorySchema = z.object({
   agencies: z.array(agencySchema),
 });
 
+/** Município da divisão territorial oficial, identificado pelo código IBGE. */
+export const municipalitySchema = z.object({
+  id: z.string().regex(/^\d{7}$/),
+  name: z.string().min(1),
+});
+
+/** Unidade subnacional (no Brasil, unidade da federação) com seus municípios. */
+export const subdivisionSchema = z.object({
+  code: z.string().regex(/^[A-Z]{2}$/),
+  name: z.string().min(1),
+  municipalities: z.array(municipalitySchema),
+});
+
+/**
+ * Divisão territorial oficial de um país. Serve apenas de referência para os
+ * filtros: nenhuma fonte de incidentes informa localização abaixo do país.
+ */
+export const territoryDirectorySchema = z.object({
+  contractVersion: z.literal(CONTRACT_VERSION),
+  generatedAt: timestamp,
+  countryCode,
+  authority: z.string(),
+  subdivisions: z.array(subdivisionSchema),
+});
+
 export type SourceId = z.infer<typeof sourceIdSchema>;
 export type SourceHealth = z.infer<typeof sourceHealthSchema>;
 export type CircuitState = z.infer<typeof circuitStateSchema>;
@@ -140,3 +166,6 @@ export type Agency = z.infer<typeof agencySchema>;
 export type LossReference = z.infer<typeof lossReferenceSchema>;
 export type ThreatSnapshot = z.infer<typeof threatSnapshotSchema>;
 export type AgencyDirectory = z.infer<typeof agencyDirectorySchema>;
+export type Municipality = z.infer<typeof municipalitySchema>;
+export type Subdivision = z.infer<typeof subdivisionSchema>;
+export type TerritoryDirectory = z.infer<typeof territoryDirectorySchema>;

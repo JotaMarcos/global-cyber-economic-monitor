@@ -3,14 +3,21 @@ import {
   ALL,
   EMPTY_FILTER,
   isFilterActive,
+  isSubnational,
   withContinent,
+  withCountry,
+  withState,
 } from "../../src/web/domain/filter.ts";
 import {
   CONTINENT_IDS,
   continentOf,
   countriesOf,
 } from "../../src/web/domain/geography.ts";
-import { buildOverview, estimateLossUsd } from "../../src/web/domain/overview.ts";
+import {
+  buildOverview,
+  estimateLossUsd,
+  indexOverviewInput,
+} from "../../src/web/domain/overview.ts";
 import { makeAgency, makeIncident } from "../support/fakes.ts";
 
 describe("geografia", () => {
@@ -41,26 +48,50 @@ describe("geografia", () => {
 });
 
 describe("filtro", () => {
-  it("trocar o continente limpa o país e preserva os demais critérios", () => {
-    const filter = {
-      continent: "EUROPE",
-      country: "DE",
-      sector: "Healthcare",
-      searchTerm: "x",
-    } as const;
+  const full = {
+    continent: "SOUTH_AMERICA",
+    country: "BR",
+    state: "AM",
+    municipality: "1302603",
+    sector: "Healthcare",
+    searchTerm: "x",
+  } as const;
 
-    expect(withContinent(filter, "ASIA")).toEqual({
+  it("trocar o continente limpa país, estado e município e preserva os demais critérios", () => {
+    expect(withContinent(full, "ASIA")).toEqual({
       continent: "ASIA",
       country: ALL,
+      state: ALL,
+      municipality: ALL,
       sector: "Healthcare",
       searchTerm: "x",
     });
+  });
+
+  it("trocar o país limpa estado e município", () => {
+    expect(withCountry(full, "AR")).toEqual({
+      ...full,
+      country: "AR",
+      state: ALL,
+      municipality: ALL,
+    });
+  });
+
+  it("trocar o estado limpa apenas o município", () => {
+    expect(withState(full, "SP")).toEqual({ ...full, state: "SP", municipality: ALL });
+  });
+
+  it("identifica recorte abaixo do país", () => {
+    expect(isSubnational(EMPTY_FILTER)).toBe(false);
+    expect(isSubnational({ ...EMPTY_FILTER, state: "AM" })).toBe(true);
+    expect(isSubnational({ ...EMPTY_FILTER, municipality: "1302603" })).toBe(true);
   });
 
   it("indica se há algum critério ativo", () => {
     expect(isFilterActive(EMPTY_FILTER)).toBe(false);
     expect(isFilterActive({ ...EMPTY_FILTER, searchTerm: "   " })).toBe(false);
     expect(isFilterActive({ ...EMPTY_FILTER, country: "BR" })).toBe(true);
+    expect(isFilterActive({ ...EMPTY_FILTER, state: "AM" })).toBe(true);
     expect(isFilterActive({ ...EMPTY_FILTER, searchTerm: "acme" })).toBe(true);
   });
 });
@@ -146,6 +177,19 @@ describe("buildOverview", () => {
       activeGroups: 2,
       unlocated: 1,
       agencies: 3,
+      c2Servers: 2,
+      c2ServersOnline: 1,
+    });
+  });
+
+  it("recalcula os servidores de comando e controle conforme o país", () => {
+    expect(overview({ country: "US" }).kpis).toMatchObject({
+      c2Servers: 1,
+      c2ServersOnline: 1,
+    });
+    expect(overview({ country: "BR" }).kpis).toMatchObject({
+      c2Servers: 0,
+      c2ServersOnline: 0,
     });
   });
 
@@ -236,13 +280,49 @@ describe("buildOverview", () => {
     expect(overview({ searchTerm: "SAO JOAO" }).incidents.map((i) => i.id)).toEqual([
       "1",
     ]);
+    // Com busca ativa, a ordem é de relevância: o registro mais curto vem antes.
     expect(overview({ searchTerm: "akira" }).incidents.map((i) => i.id)).toEqual([
-      "1",
       "3",
+      "1",
     ]);
     expect(overview({ searchTerm: "jpcert" }).agencies.map((a) => a.id)).toEqual([
       "jpcert",
     ]);
+    expect(overview({ searchTerm: "akira" }).searchActive).toBe(true);
+    expect(overview().searchActive).toBe(false);
+  });
+
+  it("busca por prefixo e combina termos de campos diferentes", () => {
+    expect(overview({ searchTerm: "clin akira" }).incidents.map((i) => i.id)).toEqual([
+      "1",
+    ]);
+    expect(overview({ searchTerm: "ban pl" }).incidents.map((i) => i.id)).toEqual(["2"]);
+  });
+
+  it("encontra pelo nome legível de setor e país quando o vocabulário é informado", () => {
+    const indexes = indexOverviewInput(input, {
+      sectorLabel: (sector) => (sector === "Healthcare" ? "Saúde" : sector),
+      countryName: (code) => (code === "BR" ? "Brasil" : (code ?? "")),
+    });
+    const search = (searchTerm: string) =>
+      buildOverview(input, { ...EMPTY_FILTER, searchTerm }, indexes).incidents.map(
+        (i) => i.id,
+      );
+
+    expect(search("saude brasil")).toEqual(["1"]);
+  });
+
+  it("mantém os dados no nível do país quando há estado ou município selecionado", () => {
+    const national = overview({ country: "BR" });
+    const subnational = overview({
+      country: "BR",
+      state: "AM",
+      municipality: "1302603",
+    });
+
+    expect(subnational.subnational).toBe(true);
+    expect(national.subnational).toBe(false);
+    expect(subnational.incidents).toEqual(national.incidents);
   });
 
   it("oferece como opções os países e setores presentes nos dados", () => {

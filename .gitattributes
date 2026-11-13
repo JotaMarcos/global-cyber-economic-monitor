@@ -1,0 +1,7 @@
+# Quebra de linha LF em todos os arquivos de texto, inclusive no Windows,
+# conforme exigido pelo Prettier (endOfLine padrão "lf").
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.ico binary
