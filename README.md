@@ -62,7 +62,7 @@ Estas ressalvas também são exibidas no próprio painel.
 
 ## 5. Execução
 
-Requisito: Node.js 22.22.2 ou superior na linha 22, ou 24.15 ou superior (exigência do jsdom usado nos testes). O gateway executa TypeScript diretamente, sem etapa de compilação.
+Requisito: Node.js 24.x, a partir da versão 24.15 (exigência do jsdom usado nos testes). O gateway executa TypeScript diretamente, sem etapa de compilação.
 
 ```bash
 npm install
