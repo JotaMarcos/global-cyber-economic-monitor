@@ -234,6 +234,61 @@ describe("gateway HTTP: API", () => {
   });
 });
 
+describe("gateway HTTP: documentação interativa (Swagger UI)", () => {
+  it("publica o documento OpenAPI com todas as rotas da API", async () => {
+    const { base } = await start();
+
+    const document = (await (await fetch(`${base}/api/v1/openapi.json`)).json()) as {
+      openapi: string;
+      info: { version: string };
+      paths: Record<string, unknown>;
+      components: { schemas: Record<string, unknown> };
+    };
+
+    expect(document.openapi).toBe("3.1.0");
+    expect(document.info.version).toBe(CONTRACT_VERSION);
+    expect(Object.keys(document.paths).sort()).toEqual([
+      "/api/v1/agencies",
+      "/api/v1/health",
+      "/api/v1/snapshot",
+      "/api/v1/stream",
+      "/api/v1/territories",
+    ]);
+    expect(Object.keys(document.components.schemas)).toEqual(
+      expect.arrayContaining(["ThreatSnapshot", "AgencyDirectory", "TerritoryDirectory"]),
+    );
+  });
+
+  it("serve a página do Swagger UI apontando para o documento, sem script embutido", async () => {
+    const { base } = await start();
+
+    for (const path of ["/api/docs", "/api/docs/"]) {
+      const response = await fetch(`${base}${path}`);
+      const html = await response.text();
+      expect(response.headers.get("content-type")).toContain("text/html");
+      expect(html).toContain('id="swagger-ui"');
+      expect(html).not.toMatch(/<script>(?!<)/);
+    }
+    const initializer = await fetch(`${base}/api/docs/swagger-initializer.js`);
+    expect(await initializer.text()).toContain("/api/v1/openapi.json");
+  });
+
+  it("serve os arquivos do Swagger UI e recusa qualquer outro caminho", async () => {
+    const { base } = await start();
+
+    const script = await fetch(`${base}/api/docs/swagger-ui-bundle.js`);
+    const style = await fetch(`${base}/api/docs/swagger-ui.css`, { method: "HEAD" });
+    expect(script.headers.get("content-type")).toContain("text/javascript");
+    expect((await script.text()).length).toBeGreaterThan(1000);
+    expect(style.status).toBe(200);
+    expect(style.headers.get("content-type")).toContain("text/css");
+
+    for (const path of ["/api/docs/package.json", "/api/docs/..%2fpackage.json"]) {
+      expect((await fetch(`${base}${path}`)).status, path).toBe(404);
+    }
+  });
+});
+
 describe("gateway HTTP: fluxo contínuo (SSE)", () => {
   it("entrega o retrato atual ao conectar e cada atualização posterior", async () => {
     const { base, snapshot } = await start();

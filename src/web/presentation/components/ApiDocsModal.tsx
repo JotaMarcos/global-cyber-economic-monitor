@@ -80,6 +80,14 @@ export function ApiDocsModal({ onClose }: ApiDocsModalProps) {
                 </div>
               ))}
             </dl>
+            <a
+              href="/api/docs"
+              target="_blank"
+              rel="noreferrer"
+              className="mt-2 inline-block text-accent hover:underline"
+            >
+              Testar as rotas no Swagger UI
+            </a>
           </section>
 
           <section>
