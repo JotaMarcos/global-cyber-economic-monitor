@@ -3,10 +3,10 @@
   "version": "2.0.0",
   "scripts": {
     "dev": "concurrently -k -n gateway,web -c blue,green \"npm:dev:gateway\" \"npm:dev:web\"",
-    "dev:gateway": "node --experimental-strip-types --disable-warning=ExperimentalWarning --watch src/gateway/main/main.ts",
+    "dev:gateway": "node--watch src/gateway/main/main.ts",
     "dev:web": "vite",
     "build": "tsc --noEmit && vite build",
-    "start": "GCEM_STATIC_DIR=dist node --experimental-strip-types --disable-warning=ExperimentalWarning src/gateway/main/main.ts",
+    "start": "GCEM_STATIC_DIR=dist nodesrc/gateway/main/main.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "format": "prettier --write .",
@@ -14,7 +14,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "verify:sources": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/verify-sources.ts",
+    "verify:sources": "nodescripts/verify-sources.ts",
     "check": "npm run typecheck && npm run lint && npm run format:check && npm run test:coverage && vite build"
   },
   "keywords": [],
@@ -35,7 +35,7 @@
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.10",
-    "@types/node": "^26.6.6",
+    "@types/node": "^24.19.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.3.0",
@@ -56,6 +56,6 @@
   },
   "private": true,
   "engines": {
-    "node": "^22.22.2 || >=24.15"
+    "node": "^24.15.0"
   }
 }
