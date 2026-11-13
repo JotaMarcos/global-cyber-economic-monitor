@@ -1,0 +1,81 @@
+{
+  "status": "OK",
+  "status-code": 200,
+  "version": "1.0",
+  "access": "public",
+  "total": 891,
+  "offset": 0,
+  "limit": 1000,
+  "data": [
+    {
+      "id": "104_csirt",
+      "team": "104 CSIRT",
+      "membership": "Full Member",
+      "team-type": "CSIRT, SOC",
+      "host": "104 Corporation",
+      "country": "TW"
+    },
+    {
+      "id": "2s-soc",
+      "team": "2S-SOC",
+      "membership": "Full Member",
+      "team-type": "SOC",
+      "host": "Sopra Steria AS",
+      "country": "NO",
+      "website": ["https://www.soprasteria.no/"]
+    },
+    {
+      "id": "cert-br",
+      "team": "CERT.br",
+      "membership": "Full Member",
+      "team-type": "CSIRT",
+      "host": "NIC.br / The Brazilian Internet Steering Committee",
+      "country": "BR",
+      "website": ["https://cert.br/"]
+    },
+    {
+      "id": "accenturemx-cert",
+      "team": "AccentureMX-CERT",
+      "membership": "Full Member",
+      "team-type": "CSIRT",
+      "host": "Accenture Mexico",
+      "country": "MX",
+      "website": ["https://www.accenture.com/mx-es/about/company-index"]
+    },
+    {
+      "id": "acsc",
+      "team": "ACSC",
+      "membership": "Full Member",
+      "host": "Australian Cyber Security Centre (ACSC)",
+      "country": "AU",
+      "website": ["https://www.cyber.gov.au"]
+    },
+    {
+      "id": "acuity_inc_cybersecurity_team",
+      "team": "Acuity Inc Cybersecurity Team",
+      "membership": "Full Member",
+      "team-type": "PSIRT",
+      "host": "Acuity Technology Group",
+      "country": "US",
+      "website": ["https://www.acuityinc.com"]
+    },
+    {
+      "id": "canon_psirt",
+      "team": "Canon PSIRT",
+      "membership": "Full Member",
+      "team-type": "PSIRT",
+      "host": "Canon Inc.",
+      "country": "JP",
+      "website": ["https://psirt.canon"]
+    },
+    {
+      "id": "cshub-csirt",
+      "team": "CSHUB-CSIRT",
+      "membership": "Full Member",
+      "team-type": "CSIRT",
+      "host": "Department of Communications and Digital Technologies (DCDT)",
+      "country": "ZA",
+      "website": ["https://www.cybersecurityhub.gov.za/"]
+    }
+  ]
+}
