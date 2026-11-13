@@ -44,9 +44,25 @@ const INITIALIZER = `window.ui = SwaggerUIBundle({
 });
 `;
 
-const packageDir = dirname(
-  createRequire(import.meta.url).resolve("swagger-ui-dist/package.json"),
-);
+/**
+ * Diretório do pacote swagger-ui-dist, localizado sob demanda. Em hospedagens
+ * que empacotam o gateway (ex.: Netlify Server) o pacote não acompanha o
+ * processo: lá os arquivos são publicados como estáticos em `/api/docs/` e a
+ * ausência do pacote não pode impedir a inicialização.
+ */
+let packageDir: string | null | undefined;
+function findPackageDir(): string | null {
+  if (packageDir === undefined) {
+    try {
+      packageDir = dirname(
+        createRequire(import.meta.url).resolve("swagger-ui-dist/package.json"),
+      );
+    } catch {
+      packageDir = null;
+    }
+  }
+  return packageDir;
+}
 const cache = new Map<string, Buffer>();
 
 /** Resolve um caminho da documentação interativa; `null` quando não existe. */
@@ -66,7 +82,9 @@ export async function resolveDocsFile(pathname: string): Promise<DocsFile | null
 
   let body = cache.get(name);
   if (!body) {
-    body = await readFile(join(packageDir, name));
+    const dir = findPackageDir();
+    if (!dir) return null;
+    body = await readFile(join(dir, name));
     cache.set(name, body);
   }
   return { body, contentType };

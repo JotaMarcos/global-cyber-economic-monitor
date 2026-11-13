@@ -3,10 +3,10 @@
   "version": "2.0.0",
   "scripts": {
     "dev": "concurrently -k -n gateway,web -c blue,green \"npm:dev:gateway\" \"npm:dev:web\"",
-    "dev:gateway": "node--watch src/gateway/main/main.ts",
+    "dev:gateway": "node --watch src/gateway/main/main.ts",
     "dev:web": "vite",
     "build": "tsc --noEmit && vite build",
-    "start": "GCEM_STATIC_DIR=dist nodesrc/gateway/main/main.ts",
+    "start": "GCEM_STATIC_DIR=dist node src/gateway/main/main.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "format": "prettier --write .",
@@ -14,7 +14,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "verify:sources": "nodescripts/verify-sources.ts",
+    "verify:sources": "node scripts/verify-sources.ts",
     "check": "npm run typecheck && npm run lint && npm run format:check && npm run test:coverage && vite build"
   },
   "keywords": [],

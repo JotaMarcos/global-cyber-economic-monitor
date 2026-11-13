@@ -52,6 +52,7 @@ interface StartOptions {
   readonly maxStreamClients?: number;
   readonly allowedOrigin?: string | null;
   readonly withStatic?: boolean;
+  readonly clientIpHeader?: string;
 }
 
 async function start(options: StartOptions = {}) {
@@ -83,6 +84,7 @@ async function start(options: StartOptions = {}) {
     allowedOrigin: options.allowedOrigin ?? null,
     maxStreamClients: options.maxStreamClients ?? 5,
     heartbeatMs: 60_000,
+    clientIpHeader: options.clientIpHeader ?? null,
   });
   servers.push(server);
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -199,6 +201,23 @@ describe("gateway HTTP: API", () => {
     for (let i = 0; i < 3; i += 1) {
       statuses.push((await fetch(`${base}/api/v1/health`)).status);
     }
+
+    expect(statuses).toEqual([200, 200, 429]);
+  });
+
+  it("identifica o cliente pelo cabeçalho do proxy quando configurado", async () => {
+    const { base } = await start({
+      capacity: 1,
+      clientIpHeader: "x-nf-client-connection-ip",
+    });
+    const get = (ip: string) =>
+      fetch(`${base}/api/v1/health`, { headers: { "x-nf-client-connection-ip": ip } });
+
+    const statuses = [
+      (await get("203.0.113.1")).status,
+      (await get("203.0.113.2")).status,
+      (await get("203.0.113.1")).status,
+    ];
 
     expect(statuses).toEqual([200, 200, 429]);
   });

@@ -27,6 +27,8 @@ export interface GatewayServerOptions {
   readonly allowedOrigin: string | null;
   readonly maxStreamClients: number;
   readonly heartbeatMs: number;
+  /** Cabeçalho confiável com o IP do cliente quando há proxy reverso. */
+  readonly clientIpHeader?: string | null;
 }
 
 const SECURITY_HEADERS: Record<string, string> = {
@@ -169,7 +171,13 @@ export function createGatewayServer(options: GatewayServerOptions): Server {
     const { pathname } = new URL(request.url ?? "/", "http://gateway.local");
     if (!pathname.startsWith("/api/")) return serveStatic(request, response);
 
-    const clientId = request.socket.remoteAddress ?? "desconhecido";
+    const forwarded = options.clientIpHeader
+      ? request.headers[options.clientIpHeader.toLowerCase()]
+      : undefined;
+    const clientId =
+      (Array.isArray(forwarded) ? forwarded[0] : forwarded)?.trim() ||
+      request.socket.remoteAddress ||
+      "desconhecido";
     if (!options.rateLimiter.tryConsume(clientId)) {
       response.setHeader("retry-after", "1");
       return sendError(response, 429, "Limite de requisições excedido.");
