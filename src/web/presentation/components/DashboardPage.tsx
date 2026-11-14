@@ -2,31 +2,21 @@ import { MapPin } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import type { SourceId, Subdivision } from "../../../contract/threat-snapshot.ts";
 import { ALL, type DashboardFilter } from "../../domain/filter.ts";
-import { buildFindings } from "../../domain/findings.ts";
 import {
   buildOverview,
   indexOverviewInput,
   type RankedItem,
 } from "../../domain/overview.ts";
-import { buildPosture } from "../../domain/posture.ts";
 import { buildThreatFeed } from "../../domain/threat-feed-items.ts";
 import { useDashboard } from "../context/dashboard-context.tsx";
-import { countryName, formatInteger, formatUsd, formatUsdCompact } from "../format.ts";
+import { countryName, formatUsd, formatUsdCompact } from "../format.ts";
 import { useObservable } from "../hooks/use-observable.ts";
-import {
-  CONTINENT_LABELS,
-  emptyMessage,
-  REGISTRY_LABELS,
-  sectorLabel,
-} from "../labels.ts";
+import { CONTINENT_LABELS, sectorLabel } from "../labels.ts";
 import { AgencyDirectory } from "./AgencyDirectory.tsx";
 import { BarList, type BarListItem } from "./charts.tsx";
 import { FilterBar } from "./FilterBar.tsx";
 import { IncidentTable } from "./IncidentTable.tsx";
 import { KpiStrip } from "./KpiStrip.tsx";
-import { MonitoringControls } from "./MonitoringControls.tsx";
-import { ObservatoryDirectory } from "./ObservatoryDirectory.tsx";
-import { PostureOverview } from "./PostureOverview.tsx";
 import { PressureChart } from "./PressureChart.tsx";
 import { SectorExposureChart } from "./SectorExposureChart.tsx";
 import { SourceHealthPanel } from "./SourceHealthPanel.tsx";
@@ -42,7 +32,6 @@ const FEED_SOURCES: readonly SourceId[] = [
   "nist-nvd",
   "abusech-feodo",
   "sans-isc",
-  "spamhaus-drop",
 ];
 
 function toBarItems(
@@ -140,7 +129,6 @@ export function DashboardPage() {
           incidents: snapshot.incidents,
           agencies,
           c2Servers: snapshot.c2Servers,
-          blockedAsns: snapshot.hijackedNetworks.asns,
           lossReference: snapshot.lossReference,
         },
         filter,
@@ -165,25 +153,7 @@ export function DashboardPage() {
     criticalCves: snapshot.criticalCves,
     c2Servers: overview.c2Servers,
     topAttackers: snapshot.topAttackers,
-    blockedAsns: overview.blockedAsns,
   });
-  const posture = buildPosture(snapshot.sources, snapshot.generatedAt);
-  const findings = buildFindings({
-    incidents: overview.kpis.incidents,
-    c2ServersOnline: overview.kpis.c2ServersOnline,
-    blockedAsns: overview.blockedAsns.length,
-    criticalCves: snapshot.criticalCves,
-    ransomwareLinkedVulnerabilities: snapshot.knownExploited.ransomwareLinked,
-    hijackedNetworks: snapshot.hijackedNetworks,
-    sources: snapshot.sources,
-  });
-  const registryItems: BarListItem[] = snapshot.hijackedNetworks.networksByRegistry.map(
-    (entry) => ({
-      key: entry.registry,
-      label: REGISTRY_LABELS[entry.registry],
-      value: entry.networks,
-    }),
-  );
   const unavailableFeedSources = snapshot.sources
     .filter((source) => FEED_SOURCES.includes(source.id) && source.health === "OFFLINE")
     .map((source) => source.name);
@@ -209,8 +179,6 @@ export function DashboardPage() {
             recebidos.
           </p>
         )}
-
-        <PostureOverview posture={posture} findings={findings} />
 
         <FilterBar
           countryOptions={overview.countryOptions}
@@ -254,7 +222,7 @@ export function DashboardPage() {
           />
         </div>
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
           <Panel
             title="Ataques por continente"
             source={`${RANSOMWARE_SOURCE} e FIRST`}
@@ -287,32 +255,14 @@ export function DashboardPage() {
               emptyMessage="Sem ocorrências no recorte."
             />
           </Panel>
-          <Panel
-            title="Redes sequestradas por registro regional"
-            source="Spamhaus DROP"
-            aside={`${formatInteger(snapshot.hijackedNetworks.networkCount)} redes`}
-          >
-            <BarList
-              items={registryItems}
-              emptyMessage={emptyMessage(
-                snapshot,
-                "spamhaus-drop",
-                "Nenhuma rede listada.",
-              )}
-            />
-          </Panel>
         </div>
 
-        <MonitoringControls posture={posture} />
+        <AgencyDirectory agencies={overview.agencies} />
 
         <SourceHealthPanel
           sources={snapshot.sources}
           invalidMessages={connection.invalidMessages}
         />
-
-        <AgencyDirectory agencies={overview.agencies} />
-
-        <ObservatoryDirectory sources={snapshot.sources} />
       </main>
 
       <footer className="mx-auto max-w-7xl space-y-1.5 px-4 pb-8 pt-2 text-[11px] leading-relaxed text-faint">

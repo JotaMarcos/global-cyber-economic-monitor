@@ -13,7 +13,7 @@ import { CONTINENT_LABELS, sectorLabel } from "../labels.ts";
 export const TERRITORY_COUNTRY = "BR";
 
 const FIELD_CLASS =
-  "h-9 w-full rounded-lg border border-line bg-canvas px-3 text-sm text-ink placeholder:text-slate-600 hover:border-slate-600 focus:border-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-40";
+  "h-9 w-full rounded-lg border border-slate-700 bg-canvas px-3 text-sm text-ink placeholder:text-slate-600 hover:border-slate-600 focus:border-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-40";
 
 function Field({
   id,
@@ -59,7 +59,7 @@ export function FilterBar({
   return (
     <section
       aria-label="Filtros"
-      className="rounded-xl border border-line bg-panel shadow-sm p-4"
+      className="rounded-xl border border-line bg-panel/70 p-4"
     >
       <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-accent">
         <Funnel aria-hidden="true" className="h-4 w-4" />
@@ -158,7 +158,7 @@ export function FilterBar({
             type="button"
             onClick={() => filterCommands.clear()}
             disabled={!isFilterActive(filter)}
-            className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-line px-3 text-xs text-muted hover:border-faint hover:text-ink disabled:opacity-40"
+            className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-slate-700 px-3 text-xs text-muted hover:border-slate-500 hover:text-ink disabled:opacity-40"
           >
             <X aria-hidden="true" className="h-3.5 w-3.5" />
             Limpar filtros

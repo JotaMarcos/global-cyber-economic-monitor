@@ -55,35 +55,6 @@ export function Badge({
   );
 }
 
-const SEVERITY_BADGE_LABELS = {
-  CRITICAL: "Crítica",
-  HIGH: "Alta",
-  MEDIUM: "Média",
-  LOW: "Baixa",
-} as const;
-
-const SEVERITY_BADGE_CLASSES: Record<keyof typeof SEVERITY_BADGE_LABELS, string> = {
-  CRITICAL: "border-critical/40 bg-critical/10 text-critical",
-  HIGH: "border-serious/40 bg-serious/10 text-serious",
-  MEDIUM: "border-warning/40 bg-warning/10 text-warning",
-  LOW: "border-line bg-raised text-muted",
-};
-
-/** Severidade sempre em texto; a cor apenas reforça a leitura. */
-export function SeverityBadge({
-  severity,
-}: {
-  readonly severity: keyof typeof SEVERITY_BADGE_LABELS;
-}) {
-  return (
-    <span
-      className={`inline-flex shrink-0 items-center rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${SEVERITY_BADGE_CLASSES[severity]}`}
-    >
-      {SEVERITY_BADGE_LABELS[severity]}
-    </span>
-  );
-}
-
 export function CountryChip({ code }: { readonly code: string | null }) {
   return (
     <span className="inline-block w-7 shrink-0 rounded bg-raised py-0.5 text-center font-mono text-[10px] font-semibold text-muted">
@@ -105,11 +76,11 @@ export function Panel({ title, source, aside, className = "", children }: PanelP
   return (
     <section
       aria-label={title}
-      className={`flex min-w-0 flex-col rounded-xl border border-line bg-panel shadow-sm ${className}`}
+      className={`flex min-w-0 flex-col rounded-xl border border-line bg-panel/70 ${className}`}
     >
       <header className="flex items-start justify-between gap-3 border-b border-line/80 px-4 py-3">
         <div className="min-w-0">
-          <h2 className="truncate text-sm font-semibold text-ink">{title}</h2>
+          <h2 className="truncate text-sm font-semibold text-white">{title}</h2>
           <p className="truncate text-[11px] text-faint">Fonte: {source}</p>
         </div>
         {aside && <div className="shrink-0 text-[11px] text-muted">{aside}</div>}

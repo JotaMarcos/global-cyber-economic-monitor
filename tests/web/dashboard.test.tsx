@@ -91,22 +91,6 @@ const snapshot: ThreatSnapshot = makeSnapshot({
     },
   ],
   topAttackers: [{ rank: 1, ip: "13.94.254.200", reports: 319_739, targets: 1 }],
-  hijackedNetworks: {
-    networkCount: 1759,
-    networksByRegistry: [
-      { registry: "arin", networks: 714 },
-      { registry: "lacnic", networks: 49 },
-    ],
-    asns: [
-      {
-        asn: 64500,
-        name: "REDE-EXEMPLO",
-        domain: "exemplo.br",
-        countryCode: "BR",
-        registry: "lacnic",
-      },
-    ],
-  },
   lossReference: { perIncidentUsd: 4_440_000, source: "Relatório de referência" },
 });
 
@@ -395,84 +379,6 @@ describe("DashboardPage", () => {
     expect(nvdRow.getByText("Indisponível")).toBeInTheDocument();
     expect(nvdRow.getByText("tempo limite excedido")).toBeInTheDocument();
     expect(health.getAllByText("Operacional")).toHaveLength(5);
-  });
-
-  it("apresenta o índice de postura e os controles por severidade", async () => {
-    renderDashboard();
-    await receive();
-    const score = panel("Índice de postura do monitoramento");
-
-    // 6 fontes × 4 controles; reprovados: coleta e atualização da NVD, validação.
-    expect(score.getByText("87,5%")).toBeInTheDocument();
-    expect(score.getByText("21 de 24 controles aprovados")).toBeInTheDocument();
-    expect(score.getByText("2 reprovados")).toBeInTheDocument();
-    // Uma reprovação nos níveis crítico (coleta), médio (atualização) e baixo (validação).
-    expect(
-      panel("Controles por severidade").getAllByText(/5 de 6 controles/),
-    ).toHaveLength(3);
-  });
-
-  it("lista os achados em aberto e os recalcula conforme o recorte", async () => {
-    const user = userEvent.setup();
-    renderDashboard();
-    await receive();
-    const findings = panel("Principais achados em aberto");
-    const countOf = (title: RegExp) =>
-      within(findings.getByRole("rowheader", { name: title }).closest("tr")!);
-
-    expect(countOf(/Organizações divulgadas/).getByText("3")).toBeInTheDocument();
-    expect(countOf(/Redes sequestradas/).getByText("1.759")).toBeInTheDocument();
-    expect(countOf(/Fontes de dados sem resposta/).getByText("1")).toBeInTheDocument();
-
-    await user.selectOptions(screen.getByLabelText("País"), "US");
-    expect(countOf(/Organizações divulgadas/).getByText("1")).toBeInTheDocument();
-    expect(findings.queryByRole("rowheader", { name: /Sistemas autônomos/ })).toBeNull();
-  });
-
-  it("detalha os controles por fonte, abrindo os grupos com reprovação", async () => {
-    const user = userEvent.setup();
-    renderDashboard();
-    await receive();
-    const controls = panel("Controles de monitoramento por fonte");
-    const nvd = controls.getByRole("button", { name: /NIST NVD/ });
-
-    expect(nvd).toHaveAttribute("aria-expanded", "true");
-    expect(nvd).toHaveTextContent("2 de 4 aprovados");
-    expect(controls.getAllByText("Reprovado")).toHaveLength(3);
-
-    const kev = controls.getByRole("button", { name: /CISA KEV/ });
-    expect(kev).toHaveAttribute("aria-expanded", "false");
-    await user.click(kev);
-    expect(kev).toHaveAttribute("aria-expanded", "true");
-    expect(controls.getAllByText("Aprovado").length).toBeGreaterThan(4);
-  });
-
-  it("exibe as redes bloqueadas do Spamhaus no feed e por registro regional", async () => {
-    const user = userEvent.setup();
-    renderDashboard();
-    await receive();
-    const feed = panel("Feed OSINT tratado e sanitizado");
-
-    await user.click(feed.getByRole("button", { name: "Redes bloqueadas" }));
-    expect(feed.getByText("AS64500")).toBeInTheDocument();
-    expect(feed.getByText("REDE-EXEMPLO")).toBeInTheDocument();
-
-    const registries = panel("Redes sequestradas por registro regional");
-    expect(registries.getByText("1.759 redes")).toBeInTheDocument();
-    expect(registries.getByText("LACNIC (América Latina e Caribe)")).toBeInTheDocument();
-  });
-
-  it("cataloga as plataformas de monitoramento com a forma de acesso", async () => {
-    renderDashboard();
-    await receive();
-    const catalog = panel("Plataformas de monitoramento de ameaças");
-
-    expect(catalog.getAllByRole("listitem")).toHaveLength(8);
-    expect(catalog.getByText("Parcialmente integrada")).toBeInTheDocument();
-    expect(catalog.getByText("abuse.ch Feodo Tracker: operacional")).toBeInTheDocument();
-    expect(
-      catalog.getByRole("link", { name: /Abrir Kaspersky Cyberthreat/ }),
-    ).toHaveAttribute("rel", "noopener noreferrer");
   });
 
   it("contabiliza mensagens descartadas por violarem o contrato", async () => {

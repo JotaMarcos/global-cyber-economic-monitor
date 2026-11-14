@@ -32,13 +32,6 @@ const shortDay = new Intl.DateTimeFormat(LOCALE, {
 });
 const regionNames = new Intl.DisplayNames([LOCALE], { type: "region" });
 
-const percent = new Intl.NumberFormat(LOCALE, {
-  minimumFractionDigits: 1,
-  maximumFractionDigits: 1,
-});
-
-/** Percentual de 0 a 100 com uma casa decimal (ex.: "87,5%"). */
-export const formatPercent = (value: number): string => `${percent.format(value)}%`;
 export const formatInteger = (value: number): string => integer.format(value);
 export const formatUsdCompact = (value: number): string => compactUsd.format(value);
 export const formatUsd = (value: number): string => fullUsd.format(value);
