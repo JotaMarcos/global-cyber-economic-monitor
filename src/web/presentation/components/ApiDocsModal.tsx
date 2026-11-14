@@ -10,7 +10,7 @@ const ROUTES: readonly (readonly [string, string])[] = [
 ];
 
 const PRINCIPLES: readonly string[] = [
-  "Dados coletados apenas de instituições oficiais e de projetos públicos de monitoramento.",
+  "Dados coletados apenas de conjuntos abertos de instituições oficiais e de projetos públicos de monitoramento.",
   "Cada registro é validado por esquema; registros inválidos são descartados e contabilizados.",
   "Circuit breaker e tempo limite por fonte: a falha de uma instituição não afeta as demais.",
   "Em falha, o último conjunto válido continua servido e é sinalizado como cache.",
@@ -35,7 +35,7 @@ export function ApiDocsModal({ onClose }: ApiDocsModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-canvas/80 px-4 py-16 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink/40 px-4 py-16 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
@@ -48,7 +48,7 @@ export function ApiDocsModal({ onClose }: ApiDocsModalProps) {
         <header className="flex items-center justify-between border-b border-line px-5 py-4">
           <h2
             id="api-docs-title"
-            className="inline-flex items-center gap-2 text-sm font-semibold text-white"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-ink"
           >
             <CodeXml aria-hidden="true" className="h-4 w-4 text-accent" />
             API e arquitetura do gateway

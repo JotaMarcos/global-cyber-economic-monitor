@@ -28,6 +28,11 @@ export function fixture(name: string): unknown {
   return JSON.parse(readFileSync(resolve(FIXTURES, name), "utf8")) as unknown;
 }
 
+/** Amostra em JSON delimitado por linha, devolvida como texto. */
+export function fixtureText(name: string): string {
+  return readFileSync(resolve(FIXTURES, name), "utf8");
+}
+
 export const FIXTURE_ROUTES: Record<string, string> = {
   "api.ransomware.live": "ransomware-live.recentvictims.json",
   "www.cisa.gov": "cisa-kev.catalog.json",
@@ -35,6 +40,8 @@ export const FIXTURE_ROUTES: Record<string, string> = {
   "isc.sans.edu/api/infocon": "sans-isc.infocon.json",
   "isc.sans.edu/api/topips": "sans-isc.topips.json",
   "feodotracker.abuse.ch": "abusech-feodo.ipblocklist.json",
+  "spamhaus.org/drop/drop_v4": "spamhaus.drop_v4.ndjson",
+  "spamhaus.org/drop/asndrop": "spamhaus.asndrop.ndjson",
   "api.first.org": "first.teams.json",
   "servicodados.ibge.gov.br": "ibge.municipios.json",
 };
@@ -102,6 +109,10 @@ export class StubHttpClient implements HttpClient {
     if (!match) return Promise.reject(new Error(`rota inesperada: ${url}`));
     const payload = this.routes[match];
     return payload instanceof Error ? Promise.reject(payload) : Promise.resolve(payload);
+  }
+
+  getText(url: string): Promise<string> {
+    return this.getJson(url).then((payload) => String(payload));
   }
 }
 
@@ -181,6 +192,7 @@ export function makeSnapshot(overrides: Partial<ThreatSnapshot> = {}): ThreatSna
     criticalCves: [],
     c2Servers: [],
     topAttackers: [],
+    hijackedNetworks: { networkCount: 0, networksByRegistry: [], asns: [] },
     lossReference: { perIncidentUsd: 1_000_000, source: "Referência de teste" },
     ...overrides,
   };

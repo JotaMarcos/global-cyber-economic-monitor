@@ -18,7 +18,11 @@ import {
   estimateLossUsd,
   indexOverviewInput,
 } from "../../src/web/domain/overview.ts";
-import { makeAgency, makeIncident } from "../support/fakes.ts";
+import { buildFindings } from "../../src/web/domain/findings.ts";
+import { OBSERVATORIES } from "../../src/web/domain/observatories.ts";
+import { buildPosture } from "../../src/web/domain/posture.ts";
+import { buildThreatFeed } from "../../src/web/domain/threat-feed-items.ts";
+import { makeAgency, makeIncident, makeSource } from "../support/fakes.ts";
 
 describe("geografia", () => {
   it.each([
@@ -341,5 +345,190 @@ describe("buildOverview", () => {
     expect(empty.kpis.estimatedLossUsd).toBe(0);
     expect(empty.timeline).toEqual([]);
     expect(empty.byContinent).toHaveLength(7);
+  });
+});
+
+describe("buildPosture", () => {
+  const evaluatedAt = "2026-11-13T12:00:00.000Z";
+
+  it("aprova os quatro controles de uma fonte operacional e atualizada", () => {
+    const posture = buildPosture([makeSource()], evaluatedAt);
+
+    expect(posture).toMatchObject({ score: 100, passed: 4, total: 4 });
+    expect(posture.groups[0]!.controls.map((control) => control.id)).toEqual([
+      "1.1",
+      "1.2",
+      "1.3",
+      "1.4",
+    ]);
+  });
+
+  it("reprova cada controle pelo critério correspondente", () => {
+    const failed = (overrides: Parameters<typeof makeSource>[0]) =>
+      buildPosture([makeSource(overrides)], evaluatedAt)
+        .groups[0]!.controls.filter((control) => !control.passed)
+        .map((control) => control.rule);
+
+    expect(failed({ health: "STALE" })).toEqual(["COLLECTION"]);
+    expect(failed({ circuitState: "OPEN" })).toEqual(["CIRCUIT"]);
+    expect(failed({ lastSuccessAt: null })).toEqual(["FRESHNESS"]);
+    expect(failed({ rejectedCount: 2 })).toEqual(["VALIDATION"]);
+  });
+
+  it("tolera dois ciclos de coleta antes de considerar o dado desatualizado", () => {
+    const controlFor = (lastSuccessAt: string) =>
+      buildPosture(
+        [makeSource({ refreshIntervalSeconds: 300, lastSuccessAt })],
+        evaluatedAt,
+      ).groups[0]!.controls.find((control) => control.rule === "FRESHNESS")!.passed;
+
+    expect(controlFor("2026-11-13T11:50:00.000Z")).toBe(true);
+    expect(controlFor("2026-11-13T11:49:59.000Z")).toBe(false);
+  });
+
+  it("calcula o índice e a distribuição por severidade no conjunto das fontes", () => {
+    const posture = buildPosture(
+      [
+        makeSource(),
+        makeSource({ id: "nist-nvd", health: "OFFLINE", lastSuccessAt: null }),
+      ],
+      evaluatedAt,
+    );
+
+    expect(posture).toMatchObject({ score: 75, passed: 6, total: 8 });
+    expect(posture.bySeverity).toEqual([
+      { severity: "CRITICAL", passed: 1, total: 2 },
+      { severity: "HIGH", passed: 2, total: 2 },
+      { severity: "MEDIUM", passed: 1, total: 2 },
+      { severity: "LOW", passed: 2, total: 2 },
+    ]);
+    expect(posture.groups.map((group) => group.passed)).toEqual([4, 2]);
+  });
+
+  it("não atribui índice quando não há fonte avaliada", () => {
+    expect(buildPosture([], evaluatedAt)).toMatchObject({ score: null, total: 0 });
+  });
+});
+
+describe("buildFindings", () => {
+  const input = {
+    incidents: 3,
+    c2ServersOnline: 0,
+    blockedAsns: 5,
+    criticalCves: [
+      {
+        cveId: "CVE-2026-0001",
+        publishedAt: "2026-11-12T00:00:00Z",
+        score: 9.8,
+        summary: "",
+      },
+      {
+        cveId: "CVE-2026-0002",
+        publishedAt: "2026-11-12T00:00:00Z",
+        score: 8.1,
+        summary: "",
+      },
+    ],
+    ransomwareLinkedVulnerabilities: 361,
+    hijackedNetworks: { networkCount: 1759 },
+    sources: [
+      makeSource(),
+      makeSource({ id: "nist-nvd" as const, health: "OFFLINE" as const }),
+    ],
+  };
+
+  it("ordena por severidade e, dentro dela, por quantidade", () => {
+    expect(buildFindings(input).map(({ kind, count }) => [kind, count])).toEqual([
+      ["RANSOMWARE_DISCLOSURES", 3],
+      ["CRITICAL_CVES", 1],
+      ["HIJACKED_NETWORKS", 1759],
+      ["RANSOMWARE_VULNERABILITIES", 361],
+      ["BLOCKED_ASNS", 5],
+      ["OFFLINE_SOURCES", 1],
+    ]);
+  });
+
+  it("omite achados sem registros e indica os que seguem o recorte", () => {
+    const findings = buildFindings({ ...input, incidents: 0, c2ServersOnline: 2 });
+
+    expect(findings.map((finding) => finding.kind)).not.toContain(
+      "RANSOMWARE_DISCLOSURES",
+    );
+    expect(findings.filter((finding) => finding.scoped).map(({ kind }) => kind)).toEqual([
+      "ONLINE_C2",
+      "BLOCKED_ASNS",
+    ]);
+  });
+});
+
+describe("catálogo de plataformas de monitoramento", () => {
+  it("referencia apenas endereços https, sem parâmetros de rastreamento", () => {
+    for (const { url } of OBSERVATORIES) {
+      const parsed = new URL(url);
+      expect(parsed.protocol).toBe("https:");
+      expect(parsed.search).toBe("");
+    }
+  });
+
+  it("vincula fontes do gateway somente a plataformas com dados integrados", () => {
+    for (const observatory of OBSERVATORIES) {
+      expect(observatory.integratedSources.length > 0).toBe(
+        observatory.access !== "EXTERNAL",
+      );
+    }
+    expect(new Set(OBSERVATORIES.map(({ id }) => id)).size).toBe(OBSERVATORIES.length);
+  });
+});
+
+describe("redes bloqueadas no recorte e no feed", () => {
+  const blockedAsns = [
+    {
+      asn: 64500,
+      name: "REDE-BR",
+      domain: "exemplo.br",
+      countryCode: "BR",
+      registry: "lacnic" as const,
+    },
+    { asn: 64501, name: "", domain: "", countryCode: null, registry: null },
+  ];
+
+  it("restringe os sistemas autônomos ao recorte geográfico", () => {
+    const overview = buildOverview(
+      {
+        incidents: [],
+        agencies: [],
+        c2Servers: [],
+        blockedAsns,
+        lossReference: { perIncidentUsd: 1, source: "x" },
+      },
+      { ...EMPTY_FILTER, country: "BR" },
+    );
+
+    expect(overview.blockedAsns.map((entry) => entry.asn)).toEqual([64500]);
+  });
+
+  it("inclui os sistemas autônomos no feed com severidade alta", () => {
+    const feed = buildThreatFeed({
+      knownExploited: [],
+      criticalCves: [],
+      c2Servers: [],
+      topAttackers: [],
+      blockedAsns,
+    });
+
+    expect(feed).toEqual([
+      expect.objectContaining({
+        indicator: "AS64500",
+        category: "BLOCKED_NETWORK",
+        severity: "HIGH",
+        title: "REDE-BR",
+        detail: "exemplo.br · BR",
+      }),
+      expect.objectContaining({
+        indicator: "AS64501",
+        title: "Sistema autônomo sem nome informado",
+        detail: "",
+      }),
+    ]);
   });
 });

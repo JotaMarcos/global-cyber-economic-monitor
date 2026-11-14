@@ -14,7 +14,7 @@ export class FetchHttpClient implements HttpClient {
     this.httpFetch = httpFetch;
   }
 
-  async getJson(url: string, signal: AbortSignal): Promise<unknown> {
+  async getText(url: string, signal: AbortSignal): Promise<string> {
     const response = await this.httpFetch(url, {
       signal,
       redirect: "follow",
@@ -28,6 +28,11 @@ export class FetchHttpClient implements HttpClient {
     if (body.length > MAX_RESPONSE_BYTES) {
       throw new Error(`resposta acima do limite em ${new URL(url).host}`);
     }
+    return body;
+  }
+
+  async getJson(url: string, signal: AbortSignal): Promise<unknown> {
+    const body = await this.getText(url, signal);
     try {
       return JSON.parse(body) as unknown;
     } catch {

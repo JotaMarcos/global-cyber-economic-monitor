@@ -51,7 +51,7 @@ function HeaderBadge({
   readonly children: ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-2 rounded-lg border border-line bg-panel px-3 py-1.5 text-xs">
+    <div className="flex items-center gap-2 rounded-lg bg-panel px-3 py-2 text-xs shadow-sm">
       {icon}
       <dt className="text-muted">{label}:</dt>
       <dd className="font-medium text-ink">{children}</dd>
@@ -60,7 +60,7 @@ function HeaderBadge({
 }
 
 /**
- * Barra de telemetria do gateway e cabeçalho do painel. Todos os indicadores
+ * Barra de marca, faixa de apresentação e telemetria do gateway. Todos os indicadores
  * vêm do retrato recebido: saúde das fontes, circuitos, validação e Infocon.
  */
 export function TopBar() {
@@ -80,50 +80,18 @@ export function TopBar() {
 
   return (
     <>
-      <div className="border-b border-line bg-panel/95 px-4 py-2.5 text-xs">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3">
-          <dl className="flex flex-wrap items-center gap-x-5 gap-y-1.5">
-            <StripItem
-              icon={<Radio aria-hidden="true" className="h-3.5 w-3.5 text-accent" />}
-              label="Conexão"
-            >
-              <span role="status">
-                <Status
-                  tone={CONNECTION_TONES[connection.status]}
-                  pulse={connection.status === "LIVE"}
-                >
-                  {CONNECTION_LABELS[connection.status]}
-                </Status>
-              </span>
-            </StripItem>
-            <StripItem
-              icon={<Cpu aria-hidden="true" className="h-3.5 w-3.5 text-accent" />}
-              label="Circuit breakers fechados"
-            >
-              <span className={allCircuitsClosed ? "text-good" : "text-warning"}>
-                {sources.length > 0 ? `${closedCircuits}/${sources.length}` : "—"}
-              </span>
-            </StripItem>
-            <StripItem
-              icon={<Activity aria-hidden="true" className="h-3.5 w-3.5 text-accent" />}
-              label="Fontes operacionais"
-            >
-              {sources.length > 0 ? `${online} de ${sources.length}` : "—"}
-            </StripItem>
-            <StripItem
-              icon={<Database aria-hidden="true" className="h-3.5 w-3.5 text-accent" />}
-              label="Registros rejeitados na validação"
-            >
-              <span className={rejected > 0 ? "text-warning" : undefined}>
-                {formatInteger(rejected)}
-              </span>
-            </StripItem>
-          </dl>
-
+      <div className="border-b border-line bg-panel px-4 py-3">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
+          <p className="flex items-center gap-2 text-sm font-bold tracking-tight text-accent">
+            <span className="rounded-md bg-accent p-1.5">
+              <Globe aria-hidden="true" className="h-4 w-4 text-panel" />
+            </span>
+            GCEM
+          </p>
           <button
             type="button"
             onClick={() => setApiDocsOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-md border border-accent/40 bg-accent/10 px-3 py-1 font-semibold text-accent hover:bg-accent/20"
+            className="inline-flex items-center gap-1.5 rounded-md bg-accent px-3.5 py-2 text-xs font-bold uppercase tracking-wide text-panel hover:bg-accent/90"
           >
             <CodeXml aria-hidden="true" className="h-3.5 w-3.5" />
             API e arquitetura
@@ -131,21 +99,16 @@ export function TopBar() {
         </div>
       </div>
 
-      <header className="border-b border-line/80 bg-panel/40 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-5 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-2.5">
-            <span className="rounded-lg border border-accent/30 bg-accent/10 p-2">
-              <Globe aria-hidden="true" className="h-6 w-6 text-accent" />
-            </span>
-            <div>
-              <h1 className="text-xl font-bold tracking-tight text-white md:text-2xl">
-                Global Cyber & Economic Monitor
-              </h1>
-              <p className="text-xs text-muted md:text-sm">
-                Inteligência de ameaças de instituições oficiais de monitoramento,
-                consolidada em tempo quase real
-              </p>
-            </div>
+      <header className="bg-gradient-to-r from-hero-from via-hero-via to-hero-to">
+        <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-9 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-2xl">
+            <h1 className="text-2xl font-light tracking-tight text-panel md:text-4xl">
+              Global Cyber & Economic Monitor
+            </h1>
+            <p className="mt-3 text-sm leading-relaxed text-panel/90 md:text-base">
+              Inteligência de ameaças de instituições oficiais de monitoramento,
+              consolidada em tempo quase real
+            </p>
           </div>
 
           <dl className="flex flex-wrap items-center gap-3">
@@ -172,6 +135,46 @@ export function TopBar() {
           </dl>
         </div>
       </header>
+
+      <div className="border-b border-line bg-panel px-4 py-2.5 text-xs shadow-sm">
+        <dl className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-6 gap-y-1.5">
+          <StripItem
+            icon={<Radio aria-hidden="true" className="h-3.5 w-3.5 text-accent" />}
+            label="Conexão"
+          >
+            <span role="status">
+              <Status
+                tone={CONNECTION_TONES[connection.status]}
+                pulse={connection.status === "LIVE"}
+              >
+                {CONNECTION_LABELS[connection.status]}
+              </Status>
+            </span>
+          </StripItem>
+          <StripItem
+            icon={<Cpu aria-hidden="true" className="h-3.5 w-3.5 text-accent" />}
+            label="Circuit breakers fechados"
+          >
+            <span className={allCircuitsClosed ? "text-good" : "text-warning"}>
+              {sources.length > 0 ? `${closedCircuits}/${sources.length}` : "—"}
+            </span>
+          </StripItem>
+          <StripItem
+            icon={<Activity aria-hidden="true" className="h-3.5 w-3.5 text-accent" />}
+            label="Fontes operacionais"
+          >
+            {sources.length > 0 ? `${online} de ${sources.length}` : "—"}
+          </StripItem>
+          <StripItem
+            icon={<Database aria-hidden="true" className="h-3.5 w-3.5 text-accent" />}
+            label="Registros rejeitados na validação"
+          >
+            <span className={rejected > 0 ? "text-warning" : undefined}>
+              {formatInteger(rejected)}
+            </span>
+          </StripItem>
+        </dl>
+      </div>
 
       {apiDocsOpen && <ApiDocsModal onClose={closeApiDocs} />}
     </>

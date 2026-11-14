@@ -23,7 +23,7 @@ interface KpiProps {
 
 function Kpi({ label, value, caption, icon: Icon, toneClass, badge }: KpiProps) {
   return (
-    <div className="flex min-w-0 flex-col rounded-xl border border-line bg-panel/70 p-4">
+    <div className="flex min-w-0 flex-col rounded-xl border border-line bg-panel shadow-sm p-4">
       <dt className="mb-2 flex min-h-8 items-start justify-between gap-2 text-xs leading-snug text-muted">
         <span>{label}</span>
         {badge ? (
@@ -32,7 +32,7 @@ function Kpi({ label, value, caption, icon: Icon, toneClass, badge }: KpiProps) 
           <Icon aria-hidden="true" className={`h-4 w-4 shrink-0 ${toneClass}`} />
         )}
       </dt>
-      <dd className="text-2xl font-bold tracking-tight text-white">{value}</dd>
+      <dd className="text-2xl font-bold tracking-tight text-ink">{value}</dd>
       <dd className={`mt-1 text-xs leading-snug ${toneClass}`}>{caption}</dd>
     </div>
   );
@@ -51,14 +51,14 @@ export function KpiStrip({ kpis }: KpiStripProps) {
         value={formatInteger(kpis.incidents)}
         caption="Divulgações recentes de ransomware"
         icon={Building2}
-        toneClass="text-rose-300"
+        toneClass="text-critical"
       />
       <Kpi
         label="Prejuízo estimado"
         value={formatUsdCompact(kpis.estimatedLossUsd)}
         caption="Incidentes × custo médio de referência"
         icon={CircleDollarSign}
-        toneClass="text-amber-300"
+        toneClass="text-warning"
         badge="Estimativa"
       />
       <Kpi
@@ -70,28 +70,28 @@ export function KpiStrip({ kpis }: KpiStripProps) {
             : "Todos com país informado"
         }
         icon={Globe}
-        toneClass="text-cyan-300"
+        toneClass="text-accent"
       />
       <Kpi
         label="Grupos de ameaça ativos"
         value={formatInteger(kpis.activeGroups)}
         caption="Com divulgações no recorte"
         icon={Users}
-        toneClass="text-rose-300"
+        toneClass="text-critical"
       />
       <Kpi
         label="Servidores de botnet (C2)"
         value={formatInteger(kpis.c2Servers)}
         caption={`${formatInteger(kpis.c2ServersOnline)} online no recorte`}
         icon={Server}
-        toneClass="text-amber-300"
+        toneClass="text-warning"
       />
       <Kpi
         label="Equipes de resposta"
         value={formatInteger(kpis.agencies)}
         caption="Membros do FIRST no recorte"
         icon={ShieldCheck}
-        toneClass="text-emerald-300"
+        toneClass="text-good"
       />
     </dl>
   );

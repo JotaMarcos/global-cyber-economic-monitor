@@ -1,0 +1,16 @@
+{"asn":245,"rir":"arin","domain":"planningresearchcorp.com","cc":"US","asname":"PRC-AS"}
+{"asn":2601,"rir":"ripencc","domain":"pitline.net","cc":"UA","asname":"RADIOLINK-AS"}
+{"asn":2702,"rir":"arin","domain":"novx-systems","cc":"US","asname":"INTERSERVE"}
+{"asn":3507,"rir":"arin","domain":"ipswat.com","cc":"US","asname":"IPSWAT_TEAM"}
+{"asn":6729,"rir":"ripencc","domain":"bignet.ua","cc":"UA","asname":"DEMENIN-AS"}
+{"asn":8649,"rir":"ripencc","domain":"zexotek.de","cc":"DE","asname":"Webtraffic"}
+{"asn":17447,"rir":"apnic","domain":"net4india.com","cc":"IN","asname":"NET4-IN"}
+{"asn":17612,"rir":"apnic","domain":"rinnai.co.kr","cc":"KR","asname":"RINNAI-AS-KR"}
+{"asn":17994,"rir":"apnic","domain":"appserv.co.nz","cc":"NZ","asname":"SPARK-AS-AP"}
+{"asn":26173,"rir":"lacnic","domain":"wirelesscuracao.com","cc":"CW","asname":"King's_Cross_N.V."}
+{"asn":37707,"rir":"afrinic","domain":"seyix.sc","cc":"SC","asname":"SEY-IX-PEERING"}
+{"asn":61879,"rir":"lacnic","domain":"aleducacional.com.br","cc":"BR","asname":"América_Latina_Educacional_Adm._e_Serviços_LTDA"}
+{"asn":266702,"rir":"lacnic","domain":"nodonorte.net.ar","cc":"AR","asname":"MEGALINK_S.R.L."}
+{"asn":327837,"rir":"afrinic","domain":"seyix.sc","cc":"SC","asname":"SEY-IX-MANAGEMENT"}
+{"asn":327952,"rir":"afrinic","domain":"ntel.com.ng","cc":"NG","asname":"AS-NATCOM"}
+{"type":"metadata","timestamp":1794623204,"size":40475,"records":455,"copyright":"(c) 2026 The Spamhaus Project SLU","terms":"https://www.spamhaus.org/drop/terms/"}

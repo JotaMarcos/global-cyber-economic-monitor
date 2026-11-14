@@ -5,6 +5,7 @@ import {
   c2ServerSchema,
   criticalCveSchema,
   exploitedVulnerabilitySchema,
+  hijackedNetworksSchema,
   incidentSchema,
   subdivisionSchema,
 } from "../../src/contract/threat-snapshot.ts";
@@ -18,7 +19,8 @@ import {
   UNCLASSIFIED_SECTOR,
 } from "../../src/gateway/infrastructure/sources/ransomware-live-source.ts";
 import { SansIscSource } from "../../src/gateway/infrastructure/sources/sans-isc-source.ts";
-import { FakeClock, fixture, StubHttpClient } from "../support/fakes.ts";
+import { SpamhausDropSource } from "../../src/gateway/infrastructure/sources/spamhaus-drop-source.ts";
+import { FakeClock, fixture, fixtureText, StubHttpClient } from "../support/fakes.ts";
 
 const signal = new AbortController().signal;
 const stub = (routes: Record<string, unknown>) => new StubHttpClient(routes);
@@ -352,6 +354,81 @@ describe("IbgeLocalitiesSource", () => {
   it("trata envelope fora do formato como falha da fonte", async () => {
     await expect(
       new IbgeLocalitiesSource(stub({ ibge: { erro: true } })).read(signal),
+    ).rejects.toThrow(/fora do formato esperado/);
+  });
+});
+
+describe("SpamhausDropSource", () => {
+  const networks = fixtureText("spamhaus.drop_v4.ndjson");
+  const asns = fixtureText("spamhaus.asndrop.ndjson");
+  const routes = (overrides: Record<string, unknown> = {}) =>
+    stub({ drop_v4: networks, asndrop: asns, ...overrides });
+
+  it("traduz as amostras reais, ignorando a linha de metadados", async () => {
+    const reading = await new SpamhausDropSource(routes()).read(signal);
+
+    expect(reading).toMatchObject({ recordCount: 31, rejectedCount: 0 });
+    expect(hijackedNetworksSchema.safeParse(reading.data).success).toBe(true);
+    expect(reading.data.networkCount).toBe(16);
+    expect(reading.data.asns).toHaveLength(15);
+  });
+
+  it("totaliza as redes por registro regional e ordena os sistemas autônomos", async () => {
+    const { data } = await new SpamhausDropSource(routes()).read(signal);
+    const numbers = data.asns.map((entry) => entry.asn);
+
+    // Uma rede da amostra real vem sem registro regional: conta no total apenas.
+    expect(data.networksByRegistry).toEqual(
+      ["afrinic", "apnic", "arin", "lacnic", "ripencc"].map((registry) => ({
+        registry,
+        networks: 3,
+      })),
+    );
+    expect(data.networkCount).toBe(16);
+    expect(numbers).toEqual([...numbers].sort((a, b) => a - b));
+    expect(data.asns[0]).toEqual({
+      asn: 245,
+      name: "PRC-AS",
+      domain: "planningresearchcorp.com",
+      countryCode: "US",
+      registry: "arin",
+    });
+  });
+
+  it("descarta e contabiliza registros malformados, mantendo os válidos", async () => {
+    const reading = await new SpamhausDropSource(
+      routes({
+        drop_v4: `{"cidr":"não é rede","sblid":"SBL1","rir":"arin"}\n\n${networks}`,
+        asndrop: `{"asn":64500,"rir":"lacnic"}\n{"asn":"x","rir":"arin"}\n`,
+      }),
+    ).read(signal);
+
+    expect(reading).toMatchObject({ recordCount: 17, rejectedCount: 2 });
+    expect(reading.data.asns).toEqual([
+      { asn: 64500, name: "", domain: "", countryCode: null, registry: "lacnic" },
+    ]);
+  });
+
+  it("mantém a leitura quando apenas uma das listas responde", async () => {
+    const reading = await new SpamhausDropSource(
+      routes({ asndrop: new Error("HTTP 503 em www.spamhaus.org") }),
+    ).read(signal);
+
+    expect(reading.data.networkCount).toBe(16);
+    expect(reading.data.asns).toEqual([]);
+  });
+
+  it("falha quando nenhuma das listas responde", async () => {
+    const failure = new Error("HTTP 503 em www.spamhaus.org");
+
+    await expect(
+      new SpamhausDropSource(routes({ drop_v4: failure, asndrop: failure })).read(signal),
+    ).rejects.toThrow("HTTP 503 em www.spamhaus.org");
+  });
+
+  it("trata linha que não é JSON como falha da fonte", async () => {
+    await expect(
+      new SpamhausDropSource(routes({ drop_v4: "<html>" })).read(signal),
     ).rejects.toThrow(/fora do formato esperado/);
   });
 });

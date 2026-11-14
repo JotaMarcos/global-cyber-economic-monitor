@@ -12,6 +12,7 @@ import {
   FakeClock,
   fixture,
   FIXTURE_ROUTES,
+  fixtureText,
   ManualScheduler,
   MemoryLogger,
   SpyCircuitBreaker,
@@ -189,9 +190,13 @@ describe("gateway composto com as fontes reais (rede substituída por amostras)"
         const match = Object.keys(FIXTURE_ROUTES).find((fragment) =>
           url.includes(fragment),
         );
-        return match
-          ? Promise.resolve(Response.json(fixture(FIXTURE_ROUTES[match]!)))
-          : Promise.reject(new Error(`rota inesperada: ${url}`));
+        if (!match) return Promise.reject(new Error(`rota inesperada: ${url}`));
+        const name = FIXTURE_ROUTES[match]!;
+        return Promise.resolve(
+          name.endsWith(".ndjson")
+            ? new Response(fixtureText(name))
+            : Response.json(fixture(name)),
+        );
       });
     return { service: container.resolve(TOKENS.service), scheduler };
   }
@@ -207,10 +212,12 @@ describe("gateway composto com as fontes reais (rede substituída por amostras)"
 
     expect(threatSnapshotSchema.safeParse(snapshot).success).toBe(true);
     expect(snapshot.sources.map((source) => source.health)).toEqual(
-      Array(7).fill("ONLINE"),
+      Array(8).fill("ONLINE"),
     );
     expect(snapshot.incidents.length).toBeGreaterThan(0);
     expect(snapshot.infoconLevel).toBe("GREEN");
+    expect(snapshot.hijackedNetworks.networkCount).toBeGreaterThan(0);
+    expect(snapshot.hijackedNetworks.asns.length).toBeGreaterThan(0);
     expect(snapshot.lossReference).toEqual(DEFAULT_LOSS_REFERENCE);
     expect(service.agencyDirectory.getValue().agencies.length).toBeGreaterThan(0);
     expect(
@@ -232,7 +239,7 @@ describe("gateway composto com as fontes reais (rede substituída por amostras)"
       health: "OFFLINE",
       lastError: "HTTP 503 em api.ransomware.live",
     });
-    expect(sources.filter((source) => source.health === "ONLINE")).toHaveLength(6);
+    expect(sources.filter((source) => source.health === "ONLINE")).toHaveLength(7);
     expect(incidents).toEqual([]);
     expect(knownExploited.total).toBeGreaterThan(0);
     service.stop();
@@ -243,7 +250,7 @@ describe("gateway composto com as fontes reais (rede substituída por amostras)"
 
     service.start();
     service.start();
-    expect(scheduler.activeCount).toBe(7);
+    expect(scheduler.activeCount).toBe(8);
 
     service.stop();
     expect(scheduler.activeCount).toBe(0);

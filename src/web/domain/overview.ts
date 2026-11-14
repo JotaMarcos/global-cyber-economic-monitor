@@ -1,5 +1,6 @@
 import type {
   Agency,
+  BlockedAsn,
   C2Server,
   Incident,
   LossReference,
@@ -50,6 +51,8 @@ export interface Overview {
   readonly incidents: readonly Incident[];
   readonly agencies: readonly Agency[];
   readonly c2Servers: readonly C2Server[];
+  /** Sistemas autônomos bloqueados registrados no recorte geográfico. */
+  readonly blockedAsns: readonly BlockedAsn[];
   readonly kpis: OverviewKpis;
   readonly byContinent: readonly ContinentSummary[];
   readonly byCountry: readonly RankedItem[];
@@ -68,6 +71,7 @@ export interface OverviewInput {
   readonly incidents: readonly Incident[];
   readonly agencies: readonly Agency[];
   readonly c2Servers: readonly C2Server[];
+  readonly blockedAsns?: readonly BlockedAsn[];
   readonly lossReference: LossReference;
 }
 
@@ -240,6 +244,9 @@ export function buildOverview(
     incidents,
     agencies,
     c2Servers,
+    blockedAsns: (input.blockedAsns ?? []).filter((entry) =>
+      matchesGeography(entry.countryCode, filter),
+    ),
     kpis: {
       incidents: incidents.length,
       estimatedLossUsd: estimateLossUsd(incidents.length, lossReference),

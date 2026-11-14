@@ -1,18 +1,19 @@
 import type {
   Attacker,
+  BlockedAsn,
   C2Server,
   CriticalCve,
   ExploitedVulnerability,
 } from "../../contract/threat-snapshot.ts";
 
 export type FeedSeverity = "CRITICAL" | "HIGH" | "MEDIUM";
-export type FeedCategory = "VULNERABILITY" | "C2" | "ATTACK_SOURCE";
+export type FeedCategory = "VULNERABILITY" | "C2" | "ATTACK_SOURCE" | "BLOCKED_NETWORK";
 
 export interface FeedItem {
   readonly key: string;
   readonly category: FeedCategory;
   readonly severity: FeedSeverity;
-  /** Indicador principal: CVE, IP:porta ou IP. */
+  /** Indicador principal: CVE, IP:porta, IP ou número de sistema autônomo. */
   readonly indicator: string;
   readonly source: string;
   readonly title: string;
@@ -26,6 +27,7 @@ export interface FeedInput {
   readonly criticalCves: readonly CriticalCve[];
   readonly c2Servers: readonly C2Server[];
   readonly topAttackers: readonly Attacker[];
+  readonly blockedAsns?: readonly BlockedAsn[];
 }
 
 /** Limiares de severidade das origens de ataque, por volume de registros no DShield. */
@@ -93,7 +95,18 @@ export function buildThreatFeed(input: FeedInput): FeedItem[] {
     active: null,
   }));
 
-  return [...vulnerabilities, ...cves, ...c2, ...attackers]
+  const blocked: FeedItem[] = (input.blockedAsns ?? []).map((entry) => ({
+    key: `asndrop|${entry.asn}`,
+    category: "BLOCKED_NETWORK",
+    severity: "HIGH",
+    indicator: `AS${entry.asn}`,
+    source: "Spamhaus ASN-DROP",
+    title: entry.name || "Sistema autônomo sem nome informado",
+    detail: [entry.domain, entry.countryCode].filter(Boolean).join(" · "),
+    active: null,
+  }));
+
+  return [...vulnerabilities, ...cves, ...c2, ...attackers, ...blocked]
     .map((item, position) => ({ item, position }))
     .sort(
       (a, b) =>

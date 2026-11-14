@@ -6,6 +6,7 @@ import {
   type C2Server,
   type CriticalCve,
   type ExploitedVulnerability,
+  type HijackedNetworks,
   type Incident,
   type InfoconLevel,
   type LossReference,
@@ -37,6 +38,7 @@ export interface ThreatIntelMonitors {
   readonly criticalCves: SourceMonitor<readonly CriticalCve[]>;
   readonly internetStorm: SourceMonitor<InternetStormReading>;
   readonly c2Servers: SourceMonitor<readonly C2Server[]>;
+  readonly hijackedNetworks: SourceMonitor<HijackedNetworks>;
   readonly agencies: SourceMonitor<readonly Agency[]>;
   /** Divisão territorial oficial do Brasil (referência para filtros). */
   readonly territories: SourceMonitor<readonly Subdivision[]>;
@@ -105,6 +107,7 @@ export class ThreatIntelService {
     const { monitors, clock, lossReference } = this.options;
     const stormData = monitors.internetStorm.state.getValue().data;
     const catalog = monitors.knownExploited.state.getValue().data;
+    const hijacked = monitors.hijackedNetworks.state.getValue().data;
 
     return {
       contractVersion: CONTRACT_VERSION,
@@ -118,6 +121,11 @@ export class ThreatIntelService {
       criticalCves: [...monitors.criticalCves.state.getValue().data],
       c2Servers: [...monitors.c2Servers.state.getValue().data],
       topAttackers: [...stormData.topAttackers],
+      hijackedNetworks: {
+        networkCount: hijacked.networkCount,
+        networksByRegistry: [...hijacked.networksByRegistry],
+        asns: [...hijacked.asns],
+      },
       lossReference,
     };
   }
