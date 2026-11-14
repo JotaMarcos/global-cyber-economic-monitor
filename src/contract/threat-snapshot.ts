@@ -5,7 +5,7 @@ import { z } from "zod";
  * Os dois lados validam contra estes esquemas: o gateway antes de servir e o
  * dashboard ao receber.
  */
-export const CONTRACT_VERSION = "2";
+export const CONTRACT_VERSION = "3";
 
 const timestamp = z.iso.datetime({ offset: true });
 const calendarDate = z.iso.date();
@@ -17,6 +17,7 @@ export const SOURCE_IDS = [
   "nist-nvd",
   "sans-isc",
   "abusech-feodo",
+  "spamhaus-drop",
   "first-teams",
   "ibge-localidades",
 ] as const;
@@ -89,6 +90,32 @@ export const attackerSchema = z.object({
   targets: z.number().int().nonnegative(),
 });
 
+export const REGISTRY_IDS = ["afrinic", "apnic", "arin", "lacnic", "ripencc"] as const;
+/** Registro regional de internet (RIR) responsável pela alocação do recurso. */
+export const registrySchema = z.enum(REGISTRY_IDS);
+
+/** Sistema autônomo listado como controlado por operação maliciosa. */
+export const blockedAsnSchema = z.object({
+  asn: z.number().int().positive(),
+  name: z.string(),
+  domain: z.string(),
+  countryCode: countryCode.nullable(),
+  registry: registrySchema.nullable(),
+});
+
+/**
+ * Redes e sistemas autônomos que a fonte recomenda não rotear (listas DROP).
+ * `networkCount` cobre a lista inteira, inclusive redes sem registro regional
+ * informado, que ficam fora de `networksByRegistry`.
+ */
+export const hijackedNetworksSchema = z.object({
+  networkCount: z.number().int().nonnegative(),
+  networksByRegistry: z.array(
+    z.object({ registry: registrySchema, networks: z.number().int().positive() }),
+  ),
+  asns: z.array(blockedAsnSchema),
+});
+
 export const agencySchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
@@ -118,6 +145,7 @@ export const threatSnapshotSchema = z.object({
   criticalCves: z.array(criticalCveSchema),
   c2Servers: z.array(c2ServerSchema),
   topAttackers: z.array(attackerSchema),
+  hijackedNetworks: hijackedNetworksSchema,
   lossReference: lossReferenceSchema,
 });
 
@@ -162,6 +190,9 @@ export type ExploitedVulnerability = z.infer<typeof exploitedVulnerabilitySchema
 export type CriticalCve = z.infer<typeof criticalCveSchema>;
 export type C2Server = z.infer<typeof c2ServerSchema>;
 export type Attacker = z.infer<typeof attackerSchema>;
+export type RegistryId = z.infer<typeof registrySchema>;
+export type BlockedAsn = z.infer<typeof blockedAsnSchema>;
+export type HijackedNetworks = z.infer<typeof hijackedNetworksSchema>;
 export type Agency = z.infer<typeof agencySchema>;
 export type LossReference = z.infer<typeof lossReferenceSchema>;
 export type ThreatSnapshot = z.infer<typeof threatSnapshotSchema>;

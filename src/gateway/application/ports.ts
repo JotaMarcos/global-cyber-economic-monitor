@@ -24,6 +24,8 @@ export interface RateLimiter {
 /** Cliente HTTP de saída. Rejeita em status diferente de 2xx. */
 export interface HttpClient {
   getJson(url: string, signal: AbortSignal): Promise<unknown>;
+  /** Corpo como texto, para formatos que não são um documento JSON único. */
+  getText(url: string, signal: AbortSignal): Promise<string>;
 }
 
 export interface Logger {

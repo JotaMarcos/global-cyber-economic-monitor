@@ -176,6 +176,14 @@ describe("FetchHttpClient", () => {
     ).rejects.toThrow("HTTP 429 em exemplo.test");
   });
 
+  it("devolve o corpo como texto para formatos delimitados por linha", async () => {
+    const client = new FetchHttpClient(() => Promise.resolve(new Response('{"a":1}\n')));
+
+    await expect(client.getText("https://exemplo.test/a", signal)).resolves.toBe(
+      '{"a":1}\n',
+    );
+  });
+
   it("rejeita corpo que não é JSON", async () => {
     const client = new FetchHttpClient(() => Promise.resolve(new Response("<html>")));
 

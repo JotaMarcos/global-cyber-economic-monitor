@@ -23,6 +23,7 @@ import { IbgeLocalitiesSource } from "../infrastructure/sources/ibge-localities-
 import { NistNvdSource } from "../infrastructure/sources/nist-nvd-source.ts";
 import { RansomwareLiveSource } from "../infrastructure/sources/ransomware-live-source.ts";
 import { SansIscSource } from "../infrastructure/sources/sans-isc-source.ts";
+import { SpamhausDropSource } from "../infrastructure/sources/spamhaus-drop-source.ts";
 import {
   IntervalScheduler,
   JsonLogger,
@@ -111,6 +112,11 @@ export function createGatewayContainer(
             topAttackers: [],
           }),
           c2Servers: monitor(c, new FeodoTrackerSource(http), []),
+          hijackedNetworks: monitor(c, new SpamhausDropSource(http), {
+            networkCount: 0,
+            networksByRegistry: [],
+            asns: [],
+          }),
           agencies: monitor(c, new FirstTeamsSource(http), []),
           territories: monitor(c, new IbgeLocalitiesSource(http), []),
         },

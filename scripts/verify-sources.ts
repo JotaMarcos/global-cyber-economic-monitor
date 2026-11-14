@@ -14,6 +14,7 @@ import { IbgeLocalitiesSource } from "../src/gateway/infrastructure/sources/ibge
 import { NistNvdSource } from "../src/gateway/infrastructure/sources/nist-nvd-source.ts";
 import { RansomwareLiveSource } from "../src/gateway/infrastructure/sources/ransomware-live-source.ts";
 import { SansIscSource } from "../src/gateway/infrastructure/sources/sans-isc-source.ts";
+import { SpamhausDropSource } from "../src/gateway/infrastructure/sources/spamhaus-drop-source.ts";
 import { SystemClock } from "../src/gateway/infrastructure/system/system.ts";
 
 const http = new FetchHttpClient((input, init) => fetch(input, init));
@@ -23,6 +24,7 @@ const sources: ThreatSource<unknown>[] = [
   new NistNvdSource(http, new SystemClock()),
   new SansIscSource(http),
   new FeodoTrackerSource(http),
+  new SpamhausDropSource(http),
   new FirstTeamsSource(http),
   new IbgeLocalitiesSource(http),
 ];

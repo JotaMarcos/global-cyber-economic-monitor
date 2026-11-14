@@ -19,17 +19,20 @@ O gateway existe porque várias fontes não permitem chamadas diretas do navegad
 
 Todos os indicadores e painéis são recalculados a cada coleta das fontes e a cada mudança de filtro.
 
-| Área                                  | Conteúdo                                                                                                                                                               |
-| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Filtros**                           | Continente, país, estado e município (Brasil, divisão do IBGE), setor econômico e busca de texto completo em organização, grupo de ameaça, setor, país e equipe.       |
-| **Indicadores**                       | Organizações atacadas, prejuízo estimado, países afetados, grupos de ameaça ativos, servidores de botnet (C2) e equipes de resposta, todos restritos ao recorte.       |
-| **Pressão de ataques por hora**       | Janela deslizante das últimas 72 horas (UTC), com divulgações de ransomware e CVEs críticas.                                                                           |
-| **Exposição por setor econômico**     | Incidentes e prejuízo estimado por setor; selecionar um setor aplica o filtro.                                                                                         |
-| **Feed OSINT tratado e sanitizado**   | Vulnerabilidades exploradas, CVEs críticas, servidores de comando e controle e origens de ataque, ordenados por severidade, com os totais do catálogo global CISA KEV. |
-| **Organizações atacadas**             | Tabela das divulgações do recorte, ordenada por relevância quando há busca.                                                                                            |
-| **Rankings**                          | Ataques por continente, países mais afetados e grupos de ameaça mais ativos; continente e país são selecionáveis.                                                      |
-| **Equipes de resposta a incidentes**  | Membros do FIRST no recorte geográfico.                                                                                                                                |
-| **Integrações e qualidade dos dados** | Situação, latência, registros válidos e rejeitados e estado do disjuntor de cada fonte.                                                                                |
+| Área                                  | Conteúdo                                                                                                                                                                                 |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Postura do monitoramento**          | Índice de postura (percentual de controles operacionais aprovados nas fontes), principais achados em aberto e distribuição dos controles por severidade.                                 |
+| **Filtros**                           | Continente, país, estado e município (Brasil, divisão do IBGE), setor econômico e busca de texto completo em organização, grupo de ameaça, setor, país e equipe.                         |
+| **Indicadores**                       | Organizações atacadas, prejuízo estimado, países afetados, grupos de ameaça ativos, servidores de botnet (C2) e equipes de resposta, todos restritos ao recorte.                         |
+| **Pressão de ataques por hora**       | Janela deslizante das últimas 72 horas (UTC), com divulgações de ransomware e CVEs críticas.                                                                                             |
+| **Exposição por setor econômico**     | Incidentes e prejuízo estimado por setor; selecionar um setor aplica o filtro.                                                                                                           |
+| **Feed OSINT tratado e sanitizado**   | Vulnerabilidades exploradas, CVEs críticas, servidores de comando e controle, origens de ataque e redes bloqueadas, ordenados por severidade, com os totais do catálogo global CISA KEV. |
+| **Organizações atacadas**             | Tabela das divulgações do recorte, ordenada por relevância quando há busca.                                                                                                              |
+| **Rankings**                          | Ataques por continente, países mais afetados, grupos de ameaça mais ativos e redes sequestradas por registro regional; continente e país são selecionáveis.                              |
+| **Controles de monitoramento**        | Quatro controles por fonte (coleta, disjuntor, atualização e validação), agrupados por fonte, com resultado aprovado ou reprovado.                                                       |
+| **Equipes de resposta a incidentes**  | Membros do FIRST no recorte geográfico.                                                                                                                                                  |
+| **Integrações e qualidade dos dados** | Situação, latência, registros válidos e rejeitados e estado do disjuntor de cada fonte.                                                                                                  |
+| **Plataformas de monitoramento**      | Catálogo de plataformas de mercado e de projetos públicos, com a forma de acesso verificada e o endereço do painel de cada uma (seção 3.1).                                              |
 
 A busca ignora acentos e maiúsculas, aceita início de palavra e frase exata entre aspas e ordena os resultados por relevância. A documentação da API também pode ser aberta pela barra superior do painel.
 
@@ -42,12 +45,30 @@ A busca ignora acentos e maiúsculas, aceita início de palavra e frase exata en
 | NIST NVD               | National Institute of Standards and Technology (EUA)   | CVEs de severidade crítica dos últimos 7 dias         | 15 min |
 | SANS ISC / DShield     | SANS Internet Storm Center (EUA)                       | Nível Infocon e principais origens de ataque          | 5 min  |
 | abuse.ch Feodo Tracker | abuse.ch (Suíça)                                       | Servidores de comando e controle de botnets           | 10 min |
+| Spamhaus DROP          | The Spamhaus Project (Andorra)                         | Redes e sistemas autônomos sequestrados (DROP, ASN)   | 1 h    |
 | FIRST Teams            | Forum of Incident Response and Security Teams          | Diretório mundial de equipes de resposta a incidentes | 12 h   |
 | IBGE Localidades       | Instituto Brasileiro de Geografia e Estatística        | Divisão territorial oficial: UFs e municípios         | 24 h   |
 
 O IBGE é fonte de referência, e não de incidentes: alimenta os filtros de estado e município do Brasil.
 
 A cobertura de todos os continentes decorre de duas dimensões: o país das organizações atacadas e o diretório do FIRST, que reúne equipes de resposta (CSIRT, SOC, PSIRT, ISAC) da América do Sul, América Central e Caribe, América do Norte, Europa, Ásia e Oriente Médio, Oceania e África.
+
+### 3.1 Plataformas de monitoramento catalogadas
+
+O gateway coleta apenas conjuntos de dados abertos, sem credencial e com termos de uso públicos. As demais plataformas são referenciadas no painel, com endereço para consulta, e não reproduzidas. A situação abaixo foi verificada em 14/11/2026.
+
+| Plataforma                                 | Organização (país sede)                    | Situação no projeto                                                                                                  |
+| ------------------------------------------ | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| Spamhaus (Threat Map e listas DROP)        | The Spamhaus Project (Andorra)             | **Integrada.** Listas DROP e ASN-DROP coletadas pelo gateway.                                                        |
+| abuse.ch                                   | abuse.ch (Suíça)                           | **Parcialmente integrada.** Feodo Tracker coletado. URLhaus e ThreatFox exigem chave de autenticação (Auth-Key).     |
+| Kaspersky Cyberthreat Real-Time Map        | Kaspersky (Rússia)                         | Referenciada. Telemetria dos produtos do fabricante, sem conjunto de dados aberto.                                   |
+| FortiGuard Labs Threat Map                 | Fortinet (EUA)                             | Referenciada. Rede de sensores do fabricante, sem conjunto de dados aberto.                                          |
+| Check Point Threat Intelligence & Research | Check Point Software Technologies (Israel) | Referenciada. Relatórios e painel próprios, sem conjunto de dados aberto.                                            |
+| Hudson Rock                                | Hudson Rock (Israel)                       | Referenciada. Consulta individual de domínio ou e-mail, sem conjunto agregado aberto.                                |
+| Cyber Attack Map (cyberattackmap.net)      | Operador não identificado                  | Referenciada. Operador, origem dos dados e metodologia não verificados.                                              |
+| Datadog Cloud SIEM                         | Datadog (EUA)                              | Referenciada. Plataforma comercial voltada ao ambiente do próprio cliente; requer conta e não publica dados globais. |
+
+Os arquivos de exportação anônimos do URLhaus e do ThreatFox respondem HTTP 410 desde a adoção da chave de autenticação pela abuse.ch. A integração desses conjuntos depende de uma conta e de uma chave fornecidas pelo operador.
 
 ## 4. Limites dos dados
 
@@ -58,7 +79,9 @@ Estas ressalvas também são exibidas no próprio painel.
 3. **Granularidade geográfica.** As fontes de incidentes informam a localização até o nível de país. Nenhuma instituição oficial publica ataques cibernéticos por estado ou município. Os filtros de estado e município do Brasil seguem a divisão territorial oficial do IBGE, mas não restringem os dados: com um deles selecionado, o painel avisa que os indicadores se referem ao país e não atribui ocorrências a localidades por suposição.
 4. **Alcance dos filtros.** Cada indicador responde aos filtros que a sua fonte permite. O catálogo CISA KEV, as CVEs críticas e as origens de ataque são globais e não têm país informado; por isso aparecem no feed, e não como indicador do recorte. Servidores de comando e controle e equipes de resposta seguem continente e país, mas não o setor econômico.
 5. **Tempo real.** A atualização é contínua no painel, mas limitada pelo ciclo de publicação de cada fonte, indicado na tabela acima.
-6. **Privacidade e segurança.** O gateway descarta os endereços de sites de vazamento e as capturas de tela fornecidos pela fonte de ransomware.
+6. **Índice de postura.** O índice mede a confiabilidade da coleta (proporção de controles operacionais aprovados nas fontes). Não representa nível de ameaça nem postura de segurança de qualquer organização.
+7. **Redes sequestradas.** As listas DROP e ASN-DROP reproduzem a avaliação do Spamhaus Project. O país de um sistema autônomo é o de registro, e não necessariamente o de operação. As redes não têm país informado e por isso são totalizadas por registro regional.
+8. **Privacidade e segurança.** O gateway descarta os endereços de sites de vazamento e as capturas de tela fornecidos pela fonte de ransomware.
 
 ## 5. Execução
 
@@ -140,7 +163,7 @@ Os esquemas exibidos no Swagger UI são gerados a partir do contrato em `src/con
 | `npm run format:check`   | Formatação com Prettier                                                     |
 | `npm test`               | Testes unitários, de contrato, de integração, de interface e de arquitetura |
 | `npm run test:coverage`  | Testes com cobertura (limiar mínimo de 90% de linhas)                       |
-| `npm run verify:sources` | Consulta as sete fontes reais e relata registros válidos e rejeitados       |
+| `npm run verify:sources` | Consulta as oito fontes reais e relata registros válidos e rejeitados       |
 | `npm run check`          | Executa todas as verificações estáticas, os testes e o build                |
 
 A arquitetura, as decisões de projeto e a estratégia de testes estão em [docs/ARQUITETURA.md](docs/ARQUITETURA.md).
