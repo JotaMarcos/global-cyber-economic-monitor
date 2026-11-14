@@ -44,17 +44,13 @@ Os dois contextos não se importam mutuamente. A relação entre eles segue o pa
 | Prejuízo estimado    | Incidentes multiplicados pelo custo de referência. Nunca representa perda apurada |
 | Custo de referência  | Parâmetro de estimativa, com citação da origem                                    |
 | Rede sequestrada     | Bloco de endereços ou sistema autônomo listado pelo Spamhaus (DROP e ASN-DROP)    |
-| Controle             | Verificação operacional aplicada a uma fonte, com severidade e resultado          |
-| Índice de postura    | Percentual de controles aprovados. Mede a coleta, nunca o nível de ameaça         |
-| Achado               | Contagem direta de registros de uma fonte que exige atenção                       |
-| Plataforma           | Serviço de monitoramento catalogado, integrado ou apenas referenciado             |
 | Recorte              | Subconjunto definido pelos filtros de continente, país, setor e busca             |
 | Divisão territorial  | Estados e municípios oficiais (IBGE). Referência para filtro, nunca para dados    |
 | Recorte subnacional  | Estado ou município selecionado. Os indicadores permanecem no nível do país       |
 
 ### 2.3 Regras de domínio
 
-As regras residem em funções puras, sem dependência de framework: `buildOverview`, `estimateLossUsd`, `buildPosture`, `buildFindings`, `continentOf`, `withContinent`, `withCountry`, `withState` e a busca de texto completo (`src/web/domain`).
+As regras residem em funções puras, sem dependência de framework: `buildOverview`, `estimateLossUsd`, `continentOf`, `withContinent`, `withCountry`, `withState` e a busca de texto completo (`src/web/domain`).
 
 ### 2.4 Busca de texto completo
 
@@ -66,25 +62,6 @@ A busca por organização, grupo de ameaça, setor, país ou equipe usa um índi
 4. **Relevância.** Os resultados são ordenados pela função BM25 (Robertson e Zaragoza, 2009), com correspondência por prefixo valendo menos que a exata.
 
 Rótulos legíveis (nome do setor em português, nome do país) são indexados junto com os códigos, de modo que "saúde" e "brasil" encontram registros que a fonte classifica como "Healthcare" e "BR".
-
-### 2.5 Índice de postura do monitoramento
-
-O painel adota a estrutura usual de painéis de postura (regras avaliadas, agrupadas por requisito e ponderadas por severidade), aplicada ao próprio pipeline de coleta. `buildPosture` avalia quatro controles em cada fonte:
-
-| Controle    | Severidade | Critério de aprovação                                         |
-| ----------- | ---------- | ------------------------------------------------------------- |
-| Coleta      | Crítica    | A situação da fonte é `ONLINE`                                |
-| Disjuntor   | Alta       | O circuit breaker está `CLOSED`                               |
-| Atualização | Média      | O último sucesso ocorreu há, no máximo, dois ciclos de coleta |
-| Validação   | Baixa      | Nenhum registro foi rejeitado pelo esquema na última leitura  |
-
-O índice é a razão simples entre controles aprovados e avaliados, sem pesos, para que o valor seja reproduzível a partir da tabela exibida. A severidade ordena a leitura e compõe a distribuição por nível. O instante de avaliação é o do retrato (`generatedAt`), o que mantém a função determinística.
-
-### 2.6 Achados e catálogo de plataformas
-
-`buildFindings` converte o retrato em achados: cada achado é uma contagem direta de registros de uma fonte (por exemplo, servidores de comando e controle online), sem ponderação nem inferência. Achados sem registros são omitidos, e cada um informa se acompanha o recorte geográfico.
-
-O catálogo de plataformas (`src/web/domain/observatories.ts`) registra as plataformas de monitoramento acompanhadas e a forma de acesso verificada. Somente conjuntos abertos, sem credencial e com termos de uso públicos, entram no gateway; mapas de fabricantes, que exibem telemetria proprietária, são referenciados.
 
 ## 3. Clean Architecture
 
